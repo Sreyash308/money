@@ -3,420 +3,947 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cafe Menu - Good Coffee. Good Days.</title>
-  <meta name="description" content="Explore our artisanal cafe menu featuring signature brews, refreshing coolers, and mouthwatering quick bites made fresh for you.">
   
-  <!-- Preconnect and Google Fonts -->
+  <!-- Primary SEO Meta Tags -->
+  <title>Ochre Coffee Roasters | Specialty Coffee &amp; Slow Living</title>
+  <meta name="title" content="Ochre Coffee Roasters | Specialty Coffee &amp; Slow Living">
+  <meta name="description" content="A specialty coffee roastery and mindful café serving single-origin pour-overs, artisanal espresso, cold coolers, and fresh gourmet bites. Visit us in Indiranagar, Bengaluru.">
+  <meta name="keywords" content="specialty coffee, coffee shop near me, cafe menu, best cafe, pour over coffee, cold brew, indiranagar cafe, artisan bakery">
+  <meta name="author" content="Ochre Coffee Roasters">
+  <meta name="theme-color" content="#b85d39">
+  <link rel="canonical" href="https://money-iota-woad.vercel.app/">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://money-iota-woad.vercel.app/">
+  <meta property="og:title" content="Ochre Coffee Roasters | Specialty Coffee &amp; Slow Living">
+  <meta property="og:description" content="Mindfully sourced. Roasted in small batches. Poured with devotion. Explore our full menu, café favorites, and roastery space.">
+  <meta property="og:image" content="https://money-iota-woad.vercel.app/assets/hero_cafe.jpg">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://money-iota-woad.vercel.app/">
+  <meta property="twitter:title" content="Ochre Coffee Roasters | Specialty Coffee &amp; Slow Living">
+  <meta property="twitter:description" content="A specialty coffee roastery and mindful café serving single-origin pour-overs, artisanal espresso, cold coolers, and fresh gourmet bites.">
+  <meta property="twitter:image" content="https://money-iota-woad.vercel.app/assets/hero_cafe.jpg">
+
+  <!-- Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23b85d39'/><path d='M16 8c-3 4-3 10 0 14 3-4 3-10 0-14z' fill='%23fff'/></svg>">
+
+  <!-- Google Fonts: Plus Jakarta Sans & Caveat -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
-  
+
   <!-- Stylesheet -->
   <link rel="stylesheet" href="style.css">
+
+  <!-- Schema.org LocalBusiness Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CafeOrCoffeeShop",
+    "name": "Ochre Coffee Roasters",
+    "image": "https://money-iota-woad.vercel.app/assets/hero_cafe.jpg",
+    "url": "https://money-iota-woad.vercel.app/",
+    "telephone": "+91-98765-43210",
+    "priceRange": "₹₹",
+    "servesCuisine": "Specialty Coffee, Artisanal Bakery, Light Fare",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "14/2 Palm Grove Avenue",
+      "addressLocality": "Indiranagar, Bengaluru",
+      "postalCode": "560038",
+      "addressCountry": "IN"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 12.9784,
+      "longitude": 77.6408
+    },
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "opens": "07:30",
+        "closes": "21:30"
+      },
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Saturday", "Sunday"],
+        "opens": "08:00",
+        "closes": "22:30"
+      }
+    ],
+    "hasMenu": "https://money-iota-woad.vercel.app/#menu"
+  }
+  </script>
 </head>
 <body>
-  <div class="menu-canvas" id="menu-app">
-    
-    <!-- ==========================================
-         HEADER
-         ========================================== -->
-    <header class="menu-header">
-      <!-- Background Organic Wave (SVG) -->
-      <div class="header-wave-bg" aria-hidden="true">
-        <svg viewBox="0 0 944 230" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0 0H944V90C840 180 720 180 620 115C530 55 430 40 330 95C240 145 130 155 0 90V0Z" fill="#666b5c"/>
+  <!-- Accessibility Skip Link -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- ==========================================================================
+       STICKY NAVBAR
+       ========================================================================== -->
+  <nav class="site-navbar" id="main-navbar" aria-label="Main Navigation">
+    <div class="container navbar-inner">
+      <!-- Brand Wordmark -->
+      <a href="#hero" class="nav-brand" aria-label="Ochre Coffee Roasters Home">
+        <svg class="brand-emblem" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M16 6v10"/>
+          <path d="M16 10c-3 1-4.5 4-4 7s3 4 4 4"/>
+          <path d="M16 10c3 1 4.5 4 4 7s-3 4-4 4"/>
         </svg>
-      </div>
-
-      <!-- Top Logo Bar -->
-      <div class="header-top-bar">
-        <div class="brand-logo-circle" title="Your Cafe Logo">
-          <!-- 5-leaf botanical branch icon -->
-          <svg class="logo-leaf-icon" viewBox="0 0 32 34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M16 32V14"/>
-            <!-- Center Top Leaf -->
-            <path d="M16 14C14.5 9 14.5 4 16 2C17.5 4 17.5 9 16 14Z"/>
-            <!-- Middle Leaves -->
-            <path d="M16 19C11 17 8 13 9 10C11.5 10 14.5 14 16 19Z"/>
-            <path d="M16 19C21 17 24 13 23 10C20.5 10 17.5 14 16 19Z"/>
-            <!-- Bottom Leaves -->
-            <path d="M16 25C9 24 7 19 8 16C11 16 14 20 16 25Z"/>
-            <path d="M16 25C23 24 25 19 24 16C21 16 18 20 16 25Z"/>
-          </svg>
-          <span class="logo-brand-text">YOUR LOGO</span>
-          <span class="logo-sub-text">HERE</span>
+        <div class="brand-names">
+          <span class="brand-primary">OCHRE</span>
+          <span class="brand-secondary">Coffee Roasters</span>
         </div>
-      </div>
+      </a>
 
-      <!-- Hero Showcase: Headline & Latte Art Composition -->
-      <div class="header-showcase">
-        <div class="hero-text-area">
+      <!-- Desktop Navigation Links -->
+      <ul class="nav-links">
+        <li><a href="#menu" class="nav-link">Menu</a></li>
+        <li><a href="#favorites" class="nav-link">Favorites</a></li>
+        <li><a href="#about" class="nav-link">Our Story</a></li>
+        <li><a href="#experience" class="nav-link">Experience</a></li>
+        <li><a href="#gallery" class="nav-link">Gallery</a></li>
+        <li><a href="#visit" class="nav-link">Visit Us</a></li>
+      </ul>
+
+      <!-- Primary Action Button -->
+      <a href="#visit" class="btn btn-primary btn-sm">Find Roastery</a>
+
+      <!-- Mobile Hamburger Button -->
+      <button class="mobile-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobile-drawer">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu Drawer -->
+  <div class="mobile-drawer" id="mobile-drawer" role="dialog" aria-modal="true" aria-label="Mobile Navigation">
+    <ul class="mobile-nav-links">
+      <li><a href="#menu" class="mobile-nav-link">Menu</a></li>
+      <li><a href="#favorites" class="mobile-nav-link">Café Favorites</a></li>
+      <li><a href="#about" class="mobile-nav-link">Our Story</a></li>
+      <li><a href="#experience" class="mobile-nav-link">Experience</a></li>
+      <li><a href="#gallery" class="mobile-nav-link">Gallery</a></li>
+      <li><a href="#visit" class="mobile-nav-link">Visit Us</a></li>
+    </ul>
+
+    <a href="#visit" class="btn btn-primary" style="width: 100%; margin-bottom: 2rem;">Visit Our Roastery</a>
+
+    <div class="mobile-drawer-footer">
+      <div><strong>Location:</strong> 14/2 Palm Grove Ave, Indiranagar, Bengaluru</div>
+      <div><strong>Hours Today:</strong> 7:30 AM – 9:30 PM</div>
+      <div><strong>Instagram:</strong> @ochrecoffeeroasters</div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MAIN CONTENT CONTAINER
+       ========================================================================== -->
+  <main id="main-content">
+
+    <!-- HERO SECTION -->
+    <header class="hero-section" id="hero">
+      <div class="container hero-grid">
+        <!-- Hero Text Column -->
+        <div class="hero-content reveal-on-scroll">
+          <!-- Live Status Pill -->
+          <div class="hero-status-pill">
+            <span class="status-dot-pulse" aria-hidden="true"></span>
+            <span>Open Today: 7:30 AM – 9:30 PM · Indiranagar</span>
+          </div>
+
           <h1 class="hero-title">
             GOOD COFFEE.<br>
-            GOOD DAYS.
+            GOOD DAYS.<br>
+            <span class="title-accent">slow living.</span>
           </h1>
-          
-          <div class="hero-script-row">
-            <div class="hero-script-wrap">
-              <span class="hero-script">fuel your grind.</span>
-              <!-- Hand-drawn double brush underline -->
-              <svg class="hero-script-underline" viewBox="0 0 190 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M2 5C60 3 130 6 188 4" stroke="#b35f43" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M14 9C70 8 135 10 180 8" stroke="#2a3528" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </div>
-            
-            <!-- Terracotta Heart Doodle -->
-            <svg class="hero-heart-doodle" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-            </svg>
+
+          <p class="hero-description">
+            Mindfully sourced single-origin beans, roasted weekly in small batches, and poured with quiet devotion. A space designed to slow down, work, and savor the craft.
+          </p>
+
+          <div class="hero-cta-group">
+            <a href="#menu" class="btn btn-primary">
+              <span>Explore Full Menu</span>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg>
+            </a>
+            <a href="#visit" class="btn btn-secondary">Visit Roastery</a>
           </div>
 
-          <!-- "MADE FRESH. MADE FOR YOU." Pill Badge -->
-          <div class="fresh-pill-badge">
-            <svg class="fresh-pill-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M18 8h1a2 2 0 0 1 0 4h-1"/>
-              <path d="M2 8h16v6a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-              <path d="M6 1v3M10 1v3M14 1v3"/>
-            </svg>
-            <span>MADE FRESH. MADE FOR YOU.</span>
+          <!-- Trust Badges -->
+          <div class="hero-trust-badges">
+            <div class="trust-item">
+              <span class="trust-number">100%</span>
+              <span class="trust-label">Arabica Lots</span>
+            </div>
+            <div class="trust-item">
+              <span class="trust-number">Batch #48</span>
+              <span class="trust-label">Roasted Weekly</span>
+            </div>
+            <div class="trust-item">
+              <span class="trust-number">Direct</span>
+              <span class="trust-label">Estate Sourced</span>
+            </div>
           </div>
         </div>
 
-        <!-- Coffee Mug + Plant Artwork -->
-        <div class="hero-mug-wrap">
-          <img src="assets/coffee_mug.png" alt="Fresh artisan latte with heart latte art in ceramic speckled cup" class="hero-mug-img" loading="eager">
+        <!-- Hero Media Column -->
+        <div class="hero-visual-wrap reveal-on-scroll">
+          <img src="assets/hero_cafe.jpg" alt="Barista pulling a craft espresso shot at Ochre Coffee Roasters" class="hero-ambient-img" loading="eager">
+          
+          <!-- Floating Feature Card -->
+          <div class="hero-float-card">
+            <img src="assets/coffee_mug.png" alt="Artisan ceramic mug with latte art" class="float-card-img" loading="eager">
+            <div class="float-card-content">
+              <h4>Ceramic Flat White</h4>
+              <p>Chikmagalur Red Honey Lot · Silky Oat Microfoam</p>
+            </div>
+          </div>
         </div>
       </div>
     </header>
 
-    <!-- ==========================================
-         MAIN CONTENT: MENU CARDS
-         ========================================== -->
-    <main class="menu-main">
+    <!-- ==========================================================================
+         CAFÉ FAVORITES (MUST TRY SPOTLIGHT)
+         ========================================================================== -->
+    <section class="favorites-section" id="favorites" aria-labelledby="favorites-heading">
+      <div class="container">
+        <div class="section-head text-center reveal-on-scroll">
+          <span class="section-badge">Craft Selection</span>
+          <h2 class="section-title" id="favorites-heading">Café Favorites &amp; Signature Pours</h2>
+          <p class="section-subtitle">
+            Every drink is weighed to 0.1g and dialed in daily. Here are the four creations our guests come back for again and again.
+          </p>
+        </div>
 
-      <!-- SECTION 1: SIGNATURE BREWS -->
-      <section class="menu-card card-signature-brews" id="signature-brews">
-        <!-- Card Header -->
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="category-icon-circle icon-circle-olive">
-              <!-- Coffee cup icon with steam -->
-              <svg class="category-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 14h20v10a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V14z"/>
-                <path d="M26 17h3a3 3 0 0 1 0 6h-3"/>
-                <path d="M3 31h26"/>
-                <!-- Steam Rays -->
-                <path d="M11 6c0 3-2 3-2 5"/>
-                <path d="M16 5c0 3-2 3-2 5"/>
-                <path d="M21 6c0 3-2 3-2 5"/>
-              </svg>
+        <div class="favorites-grid">
+          <!-- Card 1: Spanish Cold Brew -->
+          <article class="favorite-card reveal-on-scroll">
+            <div class="favorite-card-media">
+              <span class="card-badge badge-ochre">Signature Cold</span>
+              <img src="assets/iced_coffee.png" alt="Layered Spanish Cold Brew with ice on wood coaster" class="favorite-card-img" loading="lazy">
             </div>
-            
-            <div class="category-title-text-wrap">
-              <h2 class="category-title title-olive">SIGNATURE BREWS</h2>
-              <div class="category-title-underline underline-olive"></div>
+            <div class="favorite-card-body">
+              <div class="favorite-card-head">
+                <h3 class="favorite-title">Spanish Cold Brew</h3>
+                <span class="favorite-price">&#8377;199</span>
+              </div>
+              <p class="favorite-desc">18-hour cold brew layered over sweetened condensed milk and crystal ice. Strong, smooth, and subtly sweet.</p>
+              <div class="favorite-footer">
+                <span class="pill-tag tag-cold">Chilled · 300ml</span>
+                <span class="tag-label">Estate Blend</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </article>
 
-        <!-- Card Body Layout -->
-        <div class="card-content-layout layout-photo-left">
-          <!-- Food Image Left -->
-          <div class="card-photo-side">
-            <img src="assets/iced_coffee.png" alt="Layered Spanish Cold Brew with ice and wooden coaster" class="card-photo-img" loading="lazy">
-          </div>
-
-          <!-- Items List Right -->
-          <div class="card-items-list">
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">CARAMEL LATTE</h3>
-                </div>
-                <p class="item-desc">Smooth espresso, caramel, and milk</p>
-              </div>
-              <span class="item-price">&#8377;189</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">HAZELNUT MOCHA</h3>
-                </div>
-                <p class="item-desc">Rich mocha with hazelnut goodness</p>
-              </div>
-              <span class="item-price">&#8377;199</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">SPANISH COLD BREW</h3>
-                  <span class="cold-badge">COLD</span>
-                </div>
-                <p class="item-desc">Strong, smooth &amp; subtly sweet</p>
-              </div>
-              <span class="item-price">&#8377;199</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">OAT MILK CAPPUCCINO</h3>
-                </div>
-                <p class="item-desc">Creamy, cozy &amp; totally dreamy</p>
-              </div>
-              <span class="item-price">&#8377;189</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">VANILLA CINNAMON LATTE</h3>
-                </div>
-                <p class="item-desc">Warm vanilla with a hint of spice</p>
-              </div>
-              <span class="item-price">&#8377;199</span>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <!-- SECTION 2: COOLERS -->
-      <section class="menu-card card-coolers" id="coolers">
-        <!-- Card Header -->
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="category-icon-circle icon-circle-olive">
-              <!-- Drink Tumbler with Straw Icon -->
-              <svg class="category-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M10 11h16l-2.2 19a2 2 0 0 1-2 1.8H14.2a2 2 0 0 1-2-1.8L10 11z"/>
-                <path d="M8 11h20"/>
-                <path d="M21 4l-4 7"/>
-                <path d="M18 19c-1 0-2 1-2 2s1 2 2 2 2-1 2-2-1-2-2-2z"/>
-              </svg>
+          <!-- Card 2: Caramel Latte -->
+          <article class="favorite-card reveal-on-scroll">
+            <div class="favorite-card-media">
+              <span class="card-badge badge-olive">House Favorite</span>
+              <img src="assets/coffee_mug.png" alt="Artisanal Latte with heart latte art in ceramic cup" class="favorite-card-img" loading="lazy">
             </div>
-            
-            <div class="category-title-text-wrap">
-              <h2 class="category-title title-olive">COOLERS</h2>
-              <div class="category-title-underline underline-olive"></div>
+            <div class="favorite-card-body">
+              <div class="favorite-card-head">
+                <h3 class="favorite-title">Ceramic Caramel Latte</h3>
+                <span class="favorite-price">&#8377;189</span>
+              </div>
+              <p class="favorite-desc">Double shot espresso, house-crafted amber caramel reduction, and velvety textured milk in handcrafted ceramic.</p>
+              <div class="favorite-footer">
+                <span class="pill-tag" style="background:#f3efe8; color:#6b6255;">Warm · 240ml</span>
+                <span class="tag-label">Single Origin</span>
+              </div>
             </div>
-          </div>
+          </article>
 
-          <!-- Top-Right Foliage Doodle -->
-          <svg class="card-doodle-leaf" viewBox="0 0 48 36" fill="none" stroke="#5b6252" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 28c8-10 18-12 32-14"/>
-            <path d="M22 21c-2-6 2-11 7-11 2 4 0 9-7 11z"/>
-            <path d="M30 18c2-5 8-8 12-6 0 4-5 8-12 6z"/>
-          </svg>
-        </div>
-
-        <!-- Card Body Layout -->
-        <div class="card-content-layout layout-photo-left">
-          <!-- Food Image Left -->
-          <div class="card-photo-side">
-            <img src="assets/matcha_cooler.png" alt="Iced Matcha Latte with straw on terrazzo coaster" class="card-photo-img" loading="lazy">
-          </div>
-
-          <!-- Items List Right -->
-          <div class="card-items-list">
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">ICED MATCHA LATTE</h3>
-                  <span class="cold-badge">COLD</span>
-                </div>
-                <p class="item-desc">Earthy matcha with creamy milk</p>
-              </div>
-              <span class="item-price">&#8377;199</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">BLUEBERRY LEMONADE</h3>
-                  <span class="cold-badge">COLD</span>
-                </div>
-                <p class="item-desc">Tangy, fruity &amp; super refreshing</p>
-              </div>
-              <span class="item-price">&#8377;179</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">WATERMELON COOLER</h3>
-                  <span class="cold-badge">COLD</span>
-                </div>
-                <p class="item-desc">Hydrating, juicy &amp; feel-good</p>
-              </div>
-              <span class="item-price">&#8377;169</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">PEACH ICED TEA</h3>
-                  <span class="cold-badge">COLD</span>
-                </div>
-                <p class="item-desc">Light, fruity &amp; perfectly chilled</p>
-              </div>
-              <span class="item-price">&#8377;169</span>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <!-- SECTION 3: QUICK BITES -->
-      <section class="menu-card card-quick-bites" id="quick-bites">
-        <!-- Card Header -->
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="category-icon-circle icon-circle-terracotta">
-              <!-- Sandwich Line Icon -->
-              <svg class="category-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 13l12-7 12 7-12 7-12-7z"/>
-                <path d="M6 17l12 7 12-7"/>
-                <path d="M6 21l12 7 12-7"/>
-              </svg>
+          <!-- Card 3: Iced Matcha Latte -->
+          <article class="favorite-card reveal-on-scroll">
+            <div class="favorite-card-media">
+              <span class="card-badge badge-olive">Pure Origin</span>
+              <img src="assets/matcha_cooler.png" alt="Iced Ceremonial Matcha Latte with straw on terrazzo coaster" class="favorite-card-img" loading="lazy">
             </div>
-            
-            <div class="category-title-text-wrap">
-              <h2 class="category-title title-terracotta">QUICK BITES</h2>
-              <div class="category-title-underline underline-terracotta"></div>
+            <div class="favorite-card-body">
+              <div class="favorite-card-head">
+                <h3 class="favorite-title">Iced Matcha Latte</h3>
+                <span class="favorite-price">&#8377;199</span>
+              </div>
+              <p class="favorite-desc">Ceremonial Uji Japanese green tea hand-whisked to order, paired with silky cold oat milk over clear ice.</p>
+              <div class="favorite-footer">
+                <span class="pill-tag tag-cold">Chilled</span>
+                <span class="pill-tag tag-veg">Vegan</span>
+              </div>
             </div>
-          </div>
+          </article>
 
-          <!-- Top-Right Heart Doodle with Rays -->
-          <svg class="card-doodle-heart-rays" viewBox="0 0 42 42" fill="none" stroke="#b35f43" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M19 31l-1.2-1.1C11.5 24.5 8 21.6 8 18c0-2.8 2.2-5 5-5 1.6 0 3.1.7 4 1.9.9-1.2 2.4-1.9 4-1.9 2.8 0 5 2.2 5 5 0 3.6-3.5 6.5-9.8 11.9L19 31z"/>
-            <path d="M28 9l3-3"/>
-            <path d="M33 14l4-1"/>
-            <path d="M29 20l4 2"/>
-          </svg>
+          <!-- Card 4: Grilled Cheese Sandwich & Fries -->
+          <article class="favorite-card reveal-on-scroll">
+            <div class="favorite-card-media">
+              <span class="card-badge badge-ochre">Chef's Choice</span>
+              <img src="assets/sandwich_fries.png" alt="Toasted grilled sourdough cheese melt with bowl of crispy peri peri fries" class="favorite-card-img" loading="lazy">
+            </div>
+            <div class="favorite-card-body">
+              <div class="favorite-card-head">
+                <h3 class="favorite-title">Artisan Melt &amp; Fries</h3>
+                <span class="favorite-price">&#8377;149</span>
+              </div>
+              <p class="favorite-desc">Slow-fermented country sourdough griddled with mature cheddar, fresh basil pesto, and crispy spiced peri peri fries.</p>
+              <div class="favorite-footer">
+                <span class="pill-tag tag-veg">
+                  <span class="veg-icon-dot"></span>
+                  Vegetarian
+                </span>
+                <span class="tag-label">Fresh Baked</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         FULL INTERACTIVE MENU SECTION
+         ========================================================================== -->
+    <section class="menu-section" id="menu" aria-labelledby="menu-heading">
+      <div class="container">
+        <div class="section-head text-center reveal-on-scroll">
+          <span class="section-badge">Curated Offerings</span>
+          <h2 class="section-title" id="menu-heading">Explore the Full Café Menu</h2>
+          <p class="section-subtitle">
+            From single-origin pour-overs and seasonal cold brews to handcrafted sourdough sandwiches and warm bakery delights.
+          </p>
         </div>
 
-        <!-- Card Body Layout (Items Left, Food Right) -->
-        <div class="card-content-layout layout-photo-right">
-          <!-- Items List Left -->
-          <div class="card-items-list">
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">GRILLED CHEESE SANDWICH</h3>
-                  <span class="veg-indicator" title="Vegetarian" aria-label="Vegetarian"></span>
-                </div>
-                <p class="item-desc">Classic comfort. Always a win.</p>
-              </div>
-              <span class="item-price">&#8377;149</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">PANEER TIKKA WRAP</h3>
-                  <span class="veg-indicator" title="Vegetarian" aria-label="Vegetarian"></span>
-                </div>
-                <p class="item-desc">Spicy, wholesome &amp; satisfying</p>
-              </div>
-              <span class="item-price">&#8377;169</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">PERI PERI FRIES</h3>
-                  <span class="veg-indicator" title="Vegetarian" aria-label="Vegetarian"></span>
-                </div>
-                <p class="item-desc">Crispy, spicy &amp; totally addictive</p>
-              </div>
-              <span class="item-price">&#8377;129</span>
-            </article>
-
-            <article class="menu-item-row">
-              <div class="item-info">
-                <div class="item-name-line">
-                  <h3 class="item-name">CHOCOLATE BROWNIE</h3>
-                </div>
-                <p class="item-desc">Fudgy, rich &amp; melts in your mouth</p>
-              </div>
-              <span class="item-price">&#8377;99</span>
-            </article>
+        <!-- Filter Controls -->
+        <div class="menu-nav-container reveal-on-scroll">
+          <!-- Category Selector Tabs -->
+          <div class="menu-tabs-wrapper" role="tablist" aria-label="Menu Category Filter">
+            <button class="menu-category-tab is-active" data-category="all" role="tab" aria-selected="true">
+              <span>All Items</span>
+              <span class="tab-count">17</span>
+            </button>
+            <button class="menu-category-tab" data-category="coffee" role="tab" aria-selected="false">
+              <span>Coffee &amp; Brews</span>
+              <span class="tab-count">6</span>
+            </button>
+            <button class="menu-category-tab" data-category="cold" role="tab" aria-selected="false">
+              <span>Coolers &amp; Iced</span>
+              <span class="tab-count">5</span>
+            </button>
+            <button class="menu-category-tab" data-category="tea" role="tab" aria-selected="false">
+              <span>Tea &amp; Infusions</span>
+              <span class="tab-count">2</span>
+            </button>
+            <button class="menu-category-tab" data-category="food" role="tab" aria-selected="false">
+              <span>Kitchen &amp; Bites</span>
+              <span class="tab-count">3</span>
+            </button>
+            <button class="menu-category-tab" data-category="dessert" role="tab" aria-selected="false">
+              <span>Bakery &amp; Sweet</span>
+              <span class="tab-count">1</span>
+            </button>
           </div>
 
-          <!-- Food Image Right -->
-          <div class="card-photo-side">
-            <img src="assets/sandwich_fries.png" alt="Toasted grilled cheese sandwich cut diagonally with crispy peri peri fries" class="card-photo-img" loading="lazy">
-          </div>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- ==========================================
-         FOOTER
-         ========================================== -->
-    <footer class="menu-footer">
-      <!-- Terracotta Info Ribbon -->
-      <div class="footer-ribbon">
-        <!-- Feature 1: Wi-Fi -->
-        <div class="footer-feature-item">
-          <div class="footer-icon-wrap">
-            <svg class="footer-icon-svg" viewBox="0 0 32 32" aria-hidden="true">
-              <path d="M5 11c6.5-5.5 15.5-5.5 22 0"/>
-              <path d="M9 16c4.5-4 10-4 14 0"/>
-              <path d="M13 21c1.8-1.5 4.2-1.5 6 0"/>
-              <circle cx="16" cy="26" r="1.8" fill="currentColor"/>
-            </svg>
-          </div>
-          <div class="footer-feature-text">
-            <span class="feature-title">FREE WI-FI</span>
-            <span class="feature-sub">Stay. Study. Sip.</span>
+          <!-- Dietary Checkbox Toggles -->
+          <div class="menu-dietary-filters">
+            <label class="filter-toggle-label">
+              <input type="checkbox" id="filter-veg-only">
+              <span>🌱 Vegetarian Only</span>
+            </label>
+            <label class="filter-toggle-label">
+              <input type="checkbox" id="filter-cold-only">
+              <span>❄️ Chilled Only</span>
+            </label>
           </div>
         </div>
 
-        <!-- Feature 2: Instagram Tag -->
-        <div class="footer-feature-item">
-          <div class="footer-icon-wrap">
-            <svg class="footer-icon-svg" viewBox="0 0 32 32" aria-hidden="true">
-              <rect x="5" y="5" width="22" height="22" rx="6"/>
-              <circle cx="16" cy="16" r="5"/>
-              <circle cx="22.5" cy="9.5" r="1.2" fill="currentColor"/>
-            </svg>
-          </div>
-          <div class="footer-feature-text">
-            <span class="feature-title">TAG US!</span>
-            <span class="feature-sub">@yourcafe</span>
-          </div>
-        </div>
+        <!-- Menu Cards Grid -->
+        <div class="menu-items-grid" id="menu-grid">
+          
+          <!-- COFFEE 1: Caramel Latte -->
+          <article class="menu-item-card" data-category="coffee" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Caramel Latte</h3>
+              </div>
+              <span class="item-card-price">&#8377;189</span>
+            </div>
+            <p class="item-card-desc">Smooth espresso, golden house caramel reduction, and silky steamed whole milk.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Chikmagalur Washed Lot</span>
+            </div>
+          </article>
 
-        <!-- Feature 3: Takeaway -->
-        <div class="footer-feature-item">
-          <div class="footer-icon-wrap">
-            <svg class="footer-icon-svg" viewBox="0 0 32 32" aria-hidden="true">
-              <path d="M9 10h14l-2 17a2 2 0 0 1-2 1.8H13a2 2 0 0 1-2-1.8L9 10z"/>
-              <path d="M7 10h18"/>
-              <path d="M11 6h10v4H11z"/>
-              <path d="M16 16c-1 0-1.5.8-1.5 1.5s.5 1.5 1.5 1.5 1.5-.8 1.5-1.5-.5-1.5-1.5-1.5z"/>
-            </svg>
-          </div>
-          <div class="footer-feature-text">
-            <span class="feature-title">TAKEAWAY</span>
-            <span class="feature-sub">Because coffee on the go hits different.</span>
+          <!-- COFFEE 2: Hazelnut Mocha -->
+          <article class="menu-item-card" data-category="coffee" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Hazelnut Mocha</h3>
+              </div>
+              <span class="item-card-price">&#8377;199</span>
+            </div>
+            <p class="item-card-desc">Rich Valrhona dark cocoa blended with toasted hazelnut puree and espresso.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Dark Roast · Velvety</span>
+            </div>
+          </article>
+
+          <!-- COFFEE 3: Spanish Cold Brew -->
+          <article class="menu-item-card" data-category="coffee" data-veg="true" data-cold="true">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Spanish Cold Brew</h3>
+                <span class="pill-tag tag-cold">COLD</span>
+              </div>
+              <span class="item-card-price">&#8377;199</span>
+            </div>
+            <p class="item-card-desc">18-hour cold brew concentrate with sweetened condensed milk and slow-melting ice.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Signature Cold Pour</span>
+            </div>
+          </article>
+
+          <!-- COFFEE 4: Oat Milk Cappuccino -->
+          <article class="menu-item-card" data-category="coffee" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Oat Milk Cappuccino</h3>
+                <span class="pill-tag tag-veg">Plant-Based</span>
+              </div>
+              <span class="item-card-price">&#8377;189</span>
+            </div>
+            <p class="item-card-desc">Creamy, cozy &amp; totally dreamy. Barista oat milk microfoam with a dusting of nutmeg.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Dairy-Free · Gentle Roast</span>
+            </div>
+          </article>
+
+          <!-- COFFEE 5: Vanilla Cinnamon Latte -->
+          <article class="menu-item-card" data-category="coffee" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Vanilla Cinnamon Latte</h3>
+              </div>
+              <span class="item-card-price">&#8377;199</span>
+            </div>
+            <p class="item-card-desc">Warm Madagascar vanilla infusion with freshly ground Ceylon cinnamon bark.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Spiced &amp; Comforting</span>
+            </div>
+          </article>
+
+          <!-- COFFEE 6: Single-Origin Pour Over -->
+          <article class="menu-item-card" data-category="coffee" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Single-Origin Pour Over (V60)</h3>
+              </div>
+              <span class="item-card-price">&#8377;210</span>
+            </div>
+            <p class="item-card-desc">Hand-brewed filter coffee showcasing vibrant jasmine, bergamot, and sweet stone fruit notes.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Araku Valley Micro-lot · Light Roast</span>
+            </div>
+          </article>
+
+          <!-- COOLERS 1: Iced Matcha Latte -->
+          <article class="menu-item-card" data-category="cold" data-veg="true" data-cold="true">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Iced Matcha Latte</h3>
+                <span class="pill-tag tag-cold">COLD</span>
+              </div>
+              <span class="item-card-price">&#8377;199</span>
+            </div>
+            <p class="item-card-desc">First-harvest Uji ceremonial matcha hand-whisked to order over chilled milk.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Antioxidant Rich · Stone Ground</span>
+            </div>
+          </article>
+
+          <!-- COOLERS 2: Blueberry Lemonade -->
+          <article class="menu-item-card" data-category="cold" data-veg="true" data-cold="true">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Blueberry Lemonade</h3>
+                <span class="pill-tag tag-cold">COLD</span>
+              </div>
+              <span class="item-card-price">&#8377;179</span>
+            </div>
+            <p class="item-card-desc">Wild Himalayan blueberry compote, cold-pressed lemon juice, and sparkling soda.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Tangy, Fruity &amp; Refreshing</span>
+            </div>
+          </article>
+
+          <!-- COOLERS 3: Watermelon Cooler -->
+          <article class="menu-item-card" data-category="cold" data-veg="true" data-cold="true">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Watermelon Cooler</h3>
+                <span class="pill-tag tag-cold">COLD</span>
+              </div>
+              <span class="item-card-price">&#8377;169</span>
+            </div>
+            <p class="item-card-desc">Cold-pressed watermelon, crushed mint sprigs, lime zest, and a touch of rock salt.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Hydrating · Pure Juice</span>
+            </div>
+          </article>
+
+          <!-- COOLERS 4: Peach Iced Tea -->
+          <article class="menu-item-card" data-category="cold" data-veg="true" data-cold="true">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Peach Iced Tea</h3>
+                <span class="pill-tag tag-cold">COLD</span>
+              </div>
+              <span class="item-card-price">&#8377;169</span>
+            </div>
+            <p class="item-card-desc">Nilgiri high-grown orthodox black tea steeped cold with sweet white peach nectar.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Light &amp; Perfectly Chilled</span>
+            </div>
+          </article>
+
+          <!-- COOLERS 5: Espresso Tonic -->
+          <article class="menu-item-card" data-category="cold" data-veg="true" data-cold="true">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Cold Brew Espresso Tonic</h3>
+                <span class="pill-tag tag-cold">COLD</span>
+              </div>
+              <span class="item-card-price">&#8377;185</span>
+            </div>
+            <p class="item-card-desc">Double espresso floated over botanical Indian tonic water with a twist of charred orange peel.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Effervescent · Citrusy</span>
+            </div>
+          </article>
+
+          <!-- TEA 1: Masala Chai Pot -->
+          <article class="menu-item-card" data-category="tea" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Estate Masala Chai Pot</h3>
+              </div>
+              <span class="item-card-price">&#8377;140</span>
+            </div>
+            <p class="item-card-desc">Slow-simmered Assam orthodox leaf brewed with fresh ginger, green cardamom, and whole spices.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Served in Clay Kulhad Pot</span>
+            </div>
+          </article>
+
+          <!-- TEA 2: Hibiscus Herbal Infusion -->
+          <article class="menu-item-card" data-category="tea" data-veg="true" data-cold="true">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Hibiscus Rose Tisane</h3>
+                <span class="pill-tag tag-cold">COLD / HOT</span>
+              </div>
+              <span class="item-card-price">&#8377;150</span>
+            </div>
+            <p class="item-card-desc">Caffeine-free whole dried ruby hibiscus calyces, organic rose petals, and lemongrass.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Floral &amp; Tart</span>
+            </div>
+          </article>
+
+          <!-- FOOD 1: Grilled Cheese Sandwich -->
+          <article class="menu-item-card" data-category="food" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Grilled Cheese Sandwich</h3>
+                <span class="veg-icon-dot" title="Vegetarian"></span>
+              </div>
+              <span class="item-card-price">&#8377;149</span>
+            </div>
+            <p class="item-card-desc">Classic comfort. Sharp cheddar and mozzarella melted inside toasted country sourdough.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">With Garlic Herb Dip</span>
+            </div>
+          </article>
+
+          <!-- FOOD 2: Paneer Tikka Wrap -->
+          <article class="menu-item-card" data-category="food" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Paneer Tikka Wrap</h3>
+                <span class="veg-icon-dot" title="Vegetarian"></span>
+              </div>
+              <span class="item-card-price">&#8377;169</span>
+            </div>
+            <p class="item-card-desc">Tandoor-marinated cottage cheese cubes, charred bell peppers, mint emulsion in whole-wheat flatbread.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Spicy, Wholesome &amp; Satisfying</span>
+            </div>
+          </article>
+
+          <!-- FOOD 3: Peri Peri Fries -->
+          <article class="menu-item-card" data-category="food" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Crispy Peri Peri Fries</h3>
+                <span class="veg-icon-dot" title="Vegetarian"></span>
+              </div>
+              <span class="item-card-price">&#8377;129</span>
+            </div>
+            <p class="item-card-desc">Thick cut Idaho potatoes twice-fried and tossed in house-blended African peri peri spices.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Served in Ceramic Cup</span>
+            </div>
+          </article>
+
+          <!-- DESSERT 1: Chocolate Brownie -->
+          <article class="menu-item-card" data-category="dessert" data-veg="true" data-cold="false">
+            <div class="item-card-header">
+              <div class="item-name-group">
+                <h3 class="item-card-title">Fudgy Chocolate Brownie</h3>
+                <span class="veg-icon-dot" title="Vegetarian"></span>
+              </div>
+              <span class="item-card-price">&#8377;99</span>
+            </div>
+            <p class="item-card-desc">Belgian 70% dark chocolate brownie, with sea salt flakes. Served warm with vanilla bean gelato.</p>
+            <div class="item-card-footer">
+              <span class="tag-origin">Melts in Your Mouth</span>
+            </div>
+          </article>
+
+          <!-- Empty Notice if filters hide all -->
+          <div class="menu-empty-message" id="menu-empty-notice" style="display: none;">
+            <h4>No items match your active filters.</h4>
+            <p>Try unchecking dietary filters or switching categories.</p>
           </div>
         </div>
       </div>
+    </section>
 
-      <!-- Closing Script Tagline -->
-      <div class="footer-script-tagline">
-        <span>good people. good coffee. great vibes.</span>
-        <svg class="tagline-heart-svg" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-        </svg>
+    <!-- ==========================================================================
+         BRAND STORY SECTION (ABOUT)
+         ========================================================================== */
+    -->
+    <section class="about-section" id="about" aria-labelledby="about-heading">
+      <div class="container about-grid">
+        <!-- Media Column -->
+        <div class="about-media-col reveal-on-scroll">
+          <img src="assets/about_interior.jpg" alt="Minimal warm timber interior of Ochre Coffee Roasters with soft morning sunlight" class="about-main-img" loading="lazy">
+          <div class="about-caption-card">
+            <p>"Coffee is our reason to slow down and stay awhile."</p>
+            <div class="about-caption-author">— Sreyash &amp; Team, Founders</div>
+          </div>
+        </div>
+
+        <!-- Text Content Column -->
+        <div class="about-content-col reveal-on-scroll">
+          <span class="section-badge">Our Philosophy</span>
+          <h2 class="section-title" id="about-heading">Crafted for Quiet Mornings &amp; Unhurried Afternoons</h2>
+          
+          <div class="about-pullquote">
+            "We believe good coffee is never rushed. It's an invitation to pause, meet a collaborator, read another chapter, or simply savor five quiet minutes before the day speeds up."
+          </div>
+
+          <p class="about-body-text">
+            Founded in 2024, Ochre Coffee Roasters began with an uncomplicated goal: build an honest space celebrating the craft of Indian specialty coffee. We partner directly with sustainable coffee estates in Karnataka and Araku, roasting exclusively on a fluid-air bed to coax out gentle florals, sweet honey, and chocolate undertones without bitter scorching.
+          </p>
+
+          <div class="about-pillars">
+            <div class="pillar-item">
+              <h5>Direct Trade</h5>
+              <p>Ethical partnerships with shade-grown estates.</p>
+            </div>
+            <div class="pillar-item">
+              <h5>Dialed Daily</h5>
+              <p>Every dose weighed to 0.1g for consistency.</p>
+            </div>
+            <div class="pillar-item">
+              <h5>Mindful Space</h5>
+              <p>Curated acoustics, natural light &amp; greenery.</p>
+            </div>
+          </div>
+        </div>
       </div>
-    </footer>
+    </section>
 
-  </div>
+    <!-- ==========================================================================
+         CAFÉ EXPERIENCE (SPACE & VALUES)
+         ========================================================================== -->
+    <section class="experience-section" id="experience" aria-labelledby="experience-heading">
+      <div class="container">
+        <div class="section-head text-center reveal-on-scroll">
+          <span class="section-badge">The Experience</span>
+          <h2 class="section-title" id="experience-heading">More Than Just a Cup of Coffee</h2>
+          <p class="section-subtitle">
+            A sanctuary crafted for remote productivity, gentle conversations, and lingering over fresh artisan bites.
+          </p>
+        </div>
+
+        <div class="experience-grid">
+          <!-- Feature 1: Specialty Coffee -->
+          <div class="experience-card reveal-on-scroll">
+            <div class="experience-icon-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+            </div>
+            <h4>Specialty Roasted</h4>
+            <p>Single-origin arabica lots sourced from biodiverse high-altitude estates, roasted in small micro-batches weekly.</p>
+          </div>
+
+          <!-- Feature 2: High-speed Wi-Fi -->
+          <div class="experience-card reveal-on-scroll">
+            <div class="experience-icon-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+            </div>
+            <h4>Work &amp; Create Friendly</h4>
+            <p>Dedicated sunlit corners, high-speed optic fiber Wi-Fi, accessible universal power outlets, and peaceful ambient jazz.</p>
+          </div>
+
+          <!-- Feature 3: Fresh Bites -->
+          <div class="experience-card reveal-on-scroll">
+            <div class="experience-icon-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>
+            </div>
+            <h4>Fresh Kitchen &amp; Bakes</h4>
+            <p>Slow-fermented sourdough, gourmet melted sandwiches, spicy peri peri fries, and warm brownies baked daily.</p>
+          </div>
+
+          <!-- Feature 4: Mindful Space -->
+          <div class="experience-card reveal-on-scroll">
+            <div class="experience-icon-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22v-9"/><path d="M12 13c-4.97 0-9-4.03-9-9 4.97 0 9 4.03 9 9Z"/><path d="M12 8c4.97 0 9 4.03 9 9-4.97 0-9-4.03-9-9Z"/></svg>
+            </div>
+            <h4>Sunlit Atmosphere</h4>
+            <p>Airy timber interiors, abundant live greenery, Japanese ceramic ware, and welcoming staff passionate about the pour.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         ASYMMETRIC EDITORIAL PHOTO GALLERY
+         ========================================================================== -->
+    <section class="gallery-section" id="gallery" aria-labelledby="gallery-heading">
+      <div class="container">
+        <div class="section-head text-center reveal-on-scroll">
+          <span class="section-badge">Life at Ochre</span>
+          <h2 class="section-title" id="gallery-heading">Moments Around the Roastery</h2>
+          <p class="section-subtitle">
+            A visual glimpse into our daily ritual—from early morning roast calibrations to warm afternoon gatherings.
+          </p>
+        </div>
+
+        <div class="gallery-mosaic-grid">
+          <!-- Tile 1: Tall V60 Pour-over -->
+          <div class="gallery-item gallery-tile-1 reveal-on-scroll">
+            <img src="assets/gallery_pourover.jpg" alt="Barista pouring water over single origin coffee in V60 dripper" loading="lazy">
+            <div class="gallery-overlay">
+              <span class="gallery-caption">Single Origin V60 Pour Over</span>
+            </div>
+          </div>
+
+          <!-- Tile 2: Sunlit Seating -->
+          <div class="gallery-item gallery-tile-2 reveal-on-scroll">
+            <img src="assets/gallery_space.jpg" alt="Cozy sunlit café table with laptop and notebook" loading="lazy">
+            <div class="gallery-overlay">
+              <span class="gallery-caption">Quiet Study &amp; Focus Corners</span>
+            </div>
+          </div>
+
+          <!-- Tile 3: Whole Coffee Beans -->
+          <div class="gallery-item gallery-tile-3 reveal-on-scroll">
+            <img src="assets/gallery_beans.jpg" alt="Freshly roasted whole bean Arabica coffee" loading="lazy">
+            <div class="gallery-overlay">
+              <span class="gallery-caption">Weekly Small-Batch Roasts</span>
+            </div>
+          </div>
+
+          <!-- Tile 4: Fresh Bakery & Croissants -->
+          <div class="gallery-item gallery-tile-4 reveal-on-scroll">
+            <img src="assets/gallery_pastry.jpg" alt="Flaky golden croissants and morning bakery items on marble counter" loading="lazy">
+            <div class="gallery-overlay">
+              <span class="gallery-caption">Morning Pastries &amp; Bakes</span>
+            </div>
+          </div>
+
+          <!-- Tile 5: Roastery Interior -->
+          <div class="gallery-item gallery-tile-5 reveal-on-scroll">
+            <img src="assets/about_interior.jpg" alt="Warm timber roastery tables and counter" loading="lazy">
+            <div class="gallery-overlay">
+              <span class="gallery-caption">Warm Japanese Minimal Interiors</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         VISIT US & LOCATION SECTION
+         ========================================================================== -->
+    <section class="visit-section" id="visit" aria-labelledby="visit-heading">
+      <div class="container">
+        <div class="visit-grid reveal-on-scroll">
+          
+          <!-- Location Info Left -->
+          <div class="visit-info-col">
+            <span class="section-badge">Find Our Space</span>
+            <h2 class="visit-title" id="visit-heading">Come Sit With Us</h2>
+            <p class="visit-tagline">
+              Step inside for a morning pour-over, bring your notebook for a quiet work session, or grab a cold brew on the go.
+            </p>
+
+            <div class="info-block">
+              <div class="info-label">Address</div>
+              <div class="info-val">
+                14/2 Palm Grove Avenue, 100 Feet Road,<br>
+                Indiranagar, Bengaluru, Karnataka 560038
+              </div>
+            </div>
+
+            <div class="info-block">
+              <div class="info-label">Opening Hours</div>
+              <ul class="hours-list">
+                <li class="hours-row">
+                  <span class="hours-day">Monday – Friday</span>
+                  <span class="hours-time">7:30 AM – 9:30 PM</span>
+                </li>
+                <li class="hours-row">
+                  <span class="hours-day">Saturday &amp; Sunday</span>
+                  <span class="hours-time">8:00 AM – 10:30 PM</span>
+                </li>
+                <li class="hours-row">
+                  <span class="hours-day">Public Holidays</span>
+                  <span class="hours-time">8:30 AM – 10:00 PM</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="info-block">
+              <div class="info-label">Direct Inquiries</div>
+              <div class="info-val">
+                Phone: <a href="tel:+919876543210" style="font-weight: 700; color: var(--color-accent-ochre);">+91 98765 43210</a><br>
+                Email: <a href="mailto:hello@ochrecoffee.com">hello@ochrecoffee.com</a><br>
+                Instagram: <a href="https://instagram.com/ochrecoffeeroasters" target="_blank" rel="noopener">@ochrecoffeeroasters</a>
+              </div>
+            </div>
+
+            <div class="visit-actions-row">
+              <a href="https://maps.google.com/?q=Indiranagar+Bangalore" target="_blank" rel="noopener" class="btn btn-primary">
+                <span>Get Google Maps Directions</span>
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 2l-7 16-2-7-7-2 16-7z"/></svg>
+              </a>
+              <a href="tel:+919876543210" class="btn btn-secondary">Call Café</a>
+            </div>
+          </div>
+
+          <!-- Stylized Interactive Map Card Right -->
+          <div class="visit-map-card">
+            <div class="map-visual-placeholder">
+              <div class="map-pin-pulse">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <h4 style="font-weight: 800; font-size: 1.25rem; color: var(--color-text-primary); margin-bottom: 0.4rem;">Ochre Coffee Roasters</h4>
+              <p style="font-size: 0.9rem; color: var(--color-text-secondary); max-width: 280px; line-height: 1.4;">
+                100 Feet Road, Indiranagar · 3 mins walk from Indiranagar Metro Station
+              </p>
+            </div>
+
+            <div class="map-card-banner">
+              <div class="map-landmark">
+                <h6>Valet &amp; Bicycle Parking</h6>
+                <p>Ample parking space available on premises</p>
+              </div>
+              <a href="https://maps.google.com/?q=Indiranagar+Bangalore" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+                Open Map
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==========================================================================
+       PROFESSIONAL FOOTER
+       ========================================================================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <!-- Brand Summary Column -->
+        <div class="footer-brand-col">
+          <div class="footer-brand-name">OCHRE COFFEE ROASTERS</div>
+          <p class="footer-desc">
+            A specialty coffee roastery and kitchen celebrating estate-grown Indian coffees, artisan sourdough, and slow living.
+          </p>
+          <div class="footer-social-links">
+            <a href="https://instagram.com/ochrecoffeeroasters" target="_blank" rel="noopener" class="social-icon-btn" aria-label="Instagram">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+            </a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-icon-btn" aria-label="Twitter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+            </a>
+            <a href="https://maps.google.com" target="_blank" rel="noopener" class="social-icon-btn" aria-label="Google Maps Location">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Quick Nav Column -->
+        <div>
+          <h4 class="footer-col-title">Navigation</h4>
+          <ul class="footer-nav-list">
+            <li><a href="#hero">Home</a></li>
+            <li><a href="#menu">Full Menu</a></li>
+            <li><a href="#favorites">Café Favorites</a></li>
+            <li><a href="#about">Brand Story</a></li>
+            <li><a href="#experience">The Experience</a></li>
+            <li><a href="#gallery">Editorial Gallery</a></li>
+            <li><a href="#visit">Hours &amp; Location</a></li>
+          </ul>
+        </div>
+
+        <!-- Hours & Contact Column -->
+        <div>
+          <h4 class="footer-col-title">Opening Hours</h4>
+          <ul class="footer-nav-list">
+            <li><strong>Mon – Fri:</strong> 7:30 AM – 9:30 PM</li>
+            <li><strong>Sat – Sun:</strong> 8:00 AM – 10:30 PM</li>
+            <li style="margin-top: 1rem;"><strong>Call Us:</strong> +91 98765 43210</li>
+            <li><strong>Email:</strong> hello@ochrecoffee.com</li>
+          </ul>
+        </div>
+
+        <!-- Newsletter Column -->
+        <div>
+          <h4 class="footer-col-title">Roast Dispatch</h4>
+          <p class="footer-newsletter-text">
+            Subscribe for fresh lot announcements, cupping session invites, and home brewing recipes.
+          </p>
+          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Thank you for subscribing to Ochre Coffee Dispatches!'); this.reset();">
+            <input type="email" class="newsletter-input" placeholder="Your email address" required aria-label="Email address for newsletter">
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.65rem 1.2rem;">Join</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Bottom Bar -->
+      <div class="footer-bottom-bar">
+        <span>&copy; 2026 Ochre Coffee Roasters. All rights reserved.</span>
+        <span>Crafted with devotion · Mindfully roasted in small batches</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
 </body>
 </html>
