@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cafe Menu - Good Coffee. Good Days.</title>
+  <meta name="description" content="Explore our artisanal cafe menu featuring signature brews, refreshing coolers, and mouthwatering quick bites made fresh for you.">
+  
+  <!-- Preconnect and Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="menu-canvas" id="menu-app">
+    
+    <!-- ==========================================
+         HEADER
+         ========================================== -->
+    <header class="menu-header">
+      <!-- Background Organic Wave (SVG) -->
+      <div class="header-wave-bg" aria-hidden="true">
+        <svg viewBox="0 0 944 230" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 0H944V90C840 180 720 180 620 115C530 55 430 40 330 95C240 145 130 155 0 90V0Z" fill="#666b5c"/>
+        </svg>
+      </div>
+
+      <!-- Top Logo Bar -->
+      <div class="header-top-bar">
+        <div class="brand-logo-circle" title="Your Cafe Logo">
+          <!-- 5-leaf botanical branch icon -->
+          <svg class="logo-leaf-icon" viewBox="0 0 32 34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 32V14"/>
+            <!-- Center Top Leaf -->
+            <path d="M16 14C14.5 9 14.5 4 16 2C17.5 4 17.5 9 16 14Z"/>
+            <!-- Middle Leaves -->
+            <path d="M16 19C11 17 8 13 9 10C11.5 10 14.5 14 16 19Z"/>
+            <path d="M16 19C21 17 24 13 23 10C20.5 10 17.5 14 16 19Z"/>
+            <!-- Bottom Leaves -->
+            <path d="M16 25C9 24 7 19 8 16C11 16 14 20 16 25Z"/>
+            <path d="M16 25C23 24 25 19 24 16C21 16 18 20 16 25Z"/>
+          </svg>
+          <span class="logo-brand-text">YOUR LOGO</span>
+          <span class="logo-sub-text">HERE</span>
+        </div>
+      </div>
+
+      <!-- Hero Showcase: Headline & Latte Art Composition -->
+      <div class="header-showcase">
+        <div class="hero-text-area">
+          <h1 class="hero-title">
+            GOOD COFFEE.<br>
+            GOOD DAYS.
+          </h1>
+          
+          <div class="hero-script-row">
+            <div class="hero-script-wrap">
+              <span class="hero-script">fuel your grind.</span>
+              <!-- Hand-drawn double brush underline -->
+              <svg class="hero-script-underline" viewBox="0 0 190 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M2 5C60 3 130 6 188 4" stroke="#b35f43" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M14 9C70 8 135 10 180 8" stroke="#2a3528" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+            
+            <!-- Terracotta Heart Doodle -->
+            <svg class="hero-heart-doodle" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </div>
+
+          <!-- "MADE FRESH. MADE FOR YOU." Pill Badge -->
+          <div class="fresh-pill-badge">
+            <svg class="fresh-pill-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 8h1a2 2 0 0 1 0 4h-1"/>
+              <path d="M2 8h16v6a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+              <path d="M6 1v3M10 1v3M14 1v3"/>
+            </svg>
+            <span>MADE FRESH. MADE FOR YOU.</span>
+          </div>
+        </div>
+
+        <!-- Coffee Mug + Plant Artwork -->
+        <div class="hero-mug-wrap">
+          <img src="assets/coffee_mug.png" alt="Fresh artisan latte with heart latte art in ceramic speckled cup" class="hero-mug-img" loading="eager">
+        </div>
+      </div>
+    </header>
+
+    <!-- ==========================================
+         MAIN CONTENT: MENU CARDS
+         ========================================== -->
+    <main class="menu-main">
+
+      <!-- SECTION 1: SIGNATURE BREWS -->
+      <section class="menu-card card-signature-brews" id="signature-brews">
+        <!-- Card Header -->
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <div class="category-icon-circle icon-circle-olive">
+              <!-- Coffee cup icon with steam -->
+              <svg class="category-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 14h20v10a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V14z"/>
+                <path d="M26 17h3a3 3 0 0 1 0 6h-3"/>
+                <path d="M3 31h26"/>
+                <!-- Steam Rays -->
+                <path d="M11 6c0 3-2 3-2 5"/>
+                <path d="M16 5c0 3-2 3-2 5"/>
+                <path d="M21 6c0 3-2 3-2 5"/>
+              </svg>
+            </div>
+            
+            <div class="category-title-text-wrap">
+              <h2 class="category-title title-olive">SIGNATURE BREWS</h2>
+              <div class="category-title-underline underline-olive"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Body Layout -->
+        <div class="card-content-layout layout-photo-left">
+          <!-- Food Image Left -->
+          <div class="card-photo-side">
+            <img src="assets/iced_coffee.png" alt="Layered Spanish Cold Brew with ice and wooden coaster" class="card-photo-img" loading="lazy">
+          </div>
+
+          <!-- Items List Right -->
+          <div class="card-items-list">
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">CARAMEL LATTE</h3>
+                </div>
+                <p class="item-desc">Smooth espresso, caramel, and milk</p>
+              </div>
+              <span class="item-price">&#8377;189</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">HAZELNUT MOCHA</h3>
+                </div>
+                <p class="item-desc">Rich mocha with hazelnut goodness</p>
+              </div>
+              <span class="item-price">&#8377;199</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">SPANISH COLD BREW</h3>
+                  <span class="cold-badge">COLD</span>
+                </div>
+                <p class="item-desc">Strong, smooth &amp; subtly sweet</p>
+              </div>
+              <span class="item-price">&#8377;199</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">OAT MILK CAPPUCCINO</h3>
+                </div>
+                <p class="item-desc">Creamy, cozy &amp; totally dreamy</p>
+              </div>
+              <span class="item-price">&#8377;189</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">VANILLA CINNAMON LATTE</h3>
+                </div>
+                <p class="item-desc">Warm vanilla with a hint of spice</p>
+              </div>
+              <span class="item-price">&#8377;199</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: COOLERS -->
+      <section class="menu-card card-coolers" id="coolers">
+        <!-- Card Header -->
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <div class="category-icon-circle icon-circle-olive">
+              <!-- Drink Tumbler with Straw Icon -->
+              <svg class="category-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 11h16l-2.2 19a2 2 0 0 1-2 1.8H14.2a2 2 0 0 1-2-1.8L10 11z"/>
+                <path d="M8 11h20"/>
+                <path d="M21 4l-4 7"/>
+                <path d="M18 19c-1 0-2 1-2 2s1 2 2 2 2-1 2-2-1-2-2-2z"/>
+              </svg>
+            </div>
+            
+            <div class="category-title-text-wrap">
+              <h2 class="category-title title-olive">COOLERS</h2>
+              <div class="category-title-underline underline-olive"></div>
+            </div>
+          </div>
+
+          <!-- Top-Right Foliage Doodle -->
+          <svg class="card-doodle-leaf" viewBox="0 0 48 36" fill="none" stroke="#5b6252" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 28c8-10 18-12 32-14"/>
+            <path d="M22 21c-2-6 2-11 7-11 2 4 0 9-7 11z"/>
+            <path d="M30 18c2-5 8-8 12-6 0 4-5 8-12 6z"/>
+          </svg>
+        </div>
+
+        <!-- Card Body Layout -->
+        <div class="card-content-layout layout-photo-left">
+          <!-- Food Image Left -->
+          <div class="card-photo-side">
+            <img src="assets/matcha_cooler.png" alt="Iced Matcha Latte with straw on terrazzo coaster" class="card-photo-img" loading="lazy">
+          </div>
+
+          <!-- Items List Right -->
+          <div class="card-items-list">
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">ICED MATCHA LATTE</h3>
+                  <span class="cold-badge">COLD</span>
+                </div>
+                <p class="item-desc">Earthy matcha with creamy milk</p>
+              </div>
+              <span class="item-price">&#8377;199</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">BLUEBERRY LEMONADE</h3>
+                  <span class="cold-badge">COLD</span>
+                </div>
+                <p class="item-desc">Tangy, fruity &amp; super refreshing</p>
+              </div>
+              <span class="item-price">&#8377;179</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">WATERMELON COOLER</h3>
+                  <span class="cold-badge">COLD</span>
+                </div>
+                <p class="item-desc">Hydrating, juicy &amp; feel-good</p>
+              </div>
+              <span class="item-price">&#8377;169</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">PEACH ICED TEA</h3>
+                  <span class="cold-badge">COLD</span>
+                </div>
+                <p class="item-desc">Light, fruity &amp; perfectly chilled</p>
+              </div>
+              <span class="item-price">&#8377;169</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: QUICK BITES -->
+      <section class="menu-card card-quick-bites" id="quick-bites">
+        <!-- Card Header -->
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <div class="category-icon-circle icon-circle-terracotta">
+              <!-- Sandwich Line Icon -->
+              <svg class="category-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 13l12-7 12 7-12 7-12-7z"/>
+                <path d="M6 17l12 7 12-7"/>
+                <path d="M6 21l12 7 12-7"/>
+              </svg>
+            </div>
+            
+            <div class="category-title-text-wrap">
+              <h2 class="category-title title-terracotta">QUICK BITES</h2>
+              <div class="category-title-underline underline-terracotta"></div>
+            </div>
+          </div>
+
+          <!-- Top-Right Heart Doodle with Rays -->
+          <svg class="card-doodle-heart-rays" viewBox="0 0 42 42" fill="none" stroke="#b35f43" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 31l-1.2-1.1C11.5 24.5 8 21.6 8 18c0-2.8 2.2-5 5-5 1.6 0 3.1.7 4 1.9.9-1.2 2.4-1.9 4-1.9 2.8 0 5 2.2 5 5 0 3.6-3.5 6.5-9.8 11.9L19 31z"/>
+            <path d="M28 9l3-3"/>
+            <path d="M33 14l4-1"/>
+            <path d="M29 20l4 2"/>
+          </svg>
+        </div>
+
+        <!-- Card Body Layout (Items Left, Food Right) -->
+        <div class="card-content-layout layout-photo-right">
+          <!-- Items List Left -->
+          <div class="card-items-list">
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">GRILLED CHEESE SANDWICH</h3>
+                  <span class="veg-indicator" title="Vegetarian" aria-label="Vegetarian"></span>
+                </div>
+                <p class="item-desc">Classic comfort. Always a win.</p>
+              </div>
+              <span class="item-price">&#8377;149</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">PANEER TIKKA WRAP</h3>
+                  <span class="veg-indicator" title="Vegetarian" aria-label="Vegetarian"></span>
+                </div>
+                <p class="item-desc">Spicy, wholesome &amp; satisfying</p>
+              </div>
+              <span class="item-price">&#8377;169</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">PERI PERI FRIES</h3>
+                  <span class="veg-indicator" title="Vegetarian" aria-label="Vegetarian"></span>
+                </div>
+                <p class="item-desc">Crispy, spicy &amp; totally addictive</p>
+              </div>
+              <span class="item-price">&#8377;129</span>
+            </article>
+
+            <article class="menu-item-row">
+              <div class="item-info">
+                <div class="item-name-line">
+                  <h3 class="item-name">CHOCOLATE BROWNIE</h3>
+                </div>
+                <p class="item-desc">Fudgy, rich &amp; melts in your mouth</p>
+              </div>
+              <span class="item-price">&#8377;99</span>
+            </article>
+          </div>
+
+          <!-- Food Image Right -->
+          <div class="card-photo-side">
+            <img src="assets/sandwich_fries.png" alt="Toasted grilled cheese sandwich cut diagonally with crispy peri peri fries" class="card-photo-img" loading="lazy">
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ==========================================
+         FOOTER
+         ========================================== -->
+    <footer class="menu-footer">
+      <!-- Terracotta Info Ribbon -->
+      <div class="footer-ribbon">
+        <!-- Feature 1: Wi-Fi -->
+        <div class="footer-feature-item">
+          <div class="footer-icon-wrap">
+            <svg class="footer-icon-svg" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M5 11c6.5-5.5 15.5-5.5 22 0"/>
+              <path d="M9 16c4.5-4 10-4 14 0"/>
+              <path d="M13 21c1.8-1.5 4.2-1.5 6 0"/>
+              <circle cx="16" cy="26" r="1.8" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="footer-feature-text">
+            <span class="feature-title">FREE WI-FI</span>
+            <span class="feature-sub">Stay. Study. Sip.</span>
+          </div>
+        </div>
+
+        <!-- Feature 2: Instagram Tag -->
+        <div class="footer-feature-item">
+          <div class="footer-icon-wrap">
+            <svg class="footer-icon-svg" viewBox="0 0 32 32" aria-hidden="true">
+              <rect x="5" y="5" width="22" height="22" rx="6"/>
+              <circle cx="16" cy="16" r="5"/>
+              <circle cx="22.5" cy="9.5" r="1.2" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="footer-feature-text">
+            <span class="feature-title">TAG US!</span>
+            <span class="feature-sub">@yourcafe</span>
+          </div>
+        </div>
+
+        <!-- Feature 3: Takeaway -->
+        <div class="footer-feature-item">
+          <div class="footer-icon-wrap">
+            <svg class="footer-icon-svg" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M9 10h14l-2 17a2 2 0 0 1-2 1.8H13a2 2 0 0 1-2-1.8L9 10z"/>
+              <path d="M7 10h18"/>
+              <path d="M11 6h10v4H11z"/>
+              <path d="M16 16c-1 0-1.5.8-1.5 1.5s.5 1.5 1.5 1.5 1.5-.8 1.5-1.5-.5-1.5-1.5-1.5z"/>
+            </svg>
+          </div>
+          <div class="footer-feature-text">
+            <span class="feature-title">TAKEAWAY</span>
+            <span class="feature-sub">Because coffee on the go hits different.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Closing Script Tagline -->
+      <div class="footer-script-tagline">
+        <span>good people. good coffee. great vibes.</span>
+        <svg class="tagline-heart-svg" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+      </div>
+    </footer>
+
+  </div>
+</body>
+</html>
