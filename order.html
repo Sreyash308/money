@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Status | Ochre Coffee Roasters</title>
+  <meta name="description" content="Live order confirmation and preparation tracking for Ochre Coffee Roasters.">
+  <meta name="theme-color" content="#b85d39">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23b85d39'/><path d='M16 8c-3 4-3 10 0 14 3-4 3-10 0-14z' fill='%23fff'/></svg>">
+
+  <!-- Google Fonts: Plus Jakarta Sans & Caveat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    .order-page-wrap {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-primary);
+    }
+
+    .order-container {
+      max-width: 640px;
+      margin: 3rem auto;
+      padding: 0 1.25rem;
+      width: 100%;
+    }
+
+    .order-card {
+      background-color: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .order-card-header {
+      background-color: var(--bg-card-subtle);
+      padding: 2.2rem 2rem 1.8rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .order-success-icon {
+      width: 56px;
+      height: 56px;
+      background-color: var(--color-veg-bg);
+      color: var(--color-veg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.2rem;
+      font-size: 1.8rem;
+    }
+
+    .order-number-pill {
+      display: inline-block;
+      padding: 0.35rem 1.25rem;
+      background-color: var(--color-accent-ochre-light);
+      color: var(--color-accent-ochre);
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      border-radius: var(--radius-full);
+      margin-bottom: 0.6rem;
+    }
+
+    .order-card-body {
+      padding: 2rem;
+    }
+
+    /* Live Stepper */
+    .status-stepper-box {
+      background-color: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 1.5rem 1.2rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .live-step-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .live-step-row::before {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: 20px;
+      right: 20px;
+      height: 3px;
+      background-color: var(--border-medium);
+      z-index: 1;
+    }
+
+    .live-step-item {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--color-text-muted);
+    }
+
+    .live-step-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: var(--bg-card);
+      border: 2px solid var(--border-medium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 800;
+      transition: all var(--transition-fast);
+    }
+
+    .live-step-item.is-done .live-step-dot {
+      background-color: var(--color-veg);
+      border-color: var(--color-veg);
+      color: #fff;
+    }
+
+    .live-step-item.is-active .live-step-dot {
+      background-color: var(--color-accent-ochre);
+      border-color: var(--color-accent-ochre);
+      color: #fff;
+      box-shadow: 0 0 0 4px rgba(184, 93, 57, 0.25);
+      animation: pulseActive 1.8s infinite;
+    }
+
+    .live-step-item.is-active {
+      color: var(--color-accent-ochre);
+    }
+
+    @keyframes pulseActive {
+      0% { box-shadow: 0 0 0 0 rgba(184, 93, 57, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(184, 93, 57, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(184, 93, 57, 0); }
+    }
+
+    /* Dining & Payment Info Cards */
+    .order-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .meta-box {
+      padding: 1rem 1.2rem;
+      border-radius: var(--radius-md);
+      background-color: var(--bg-card-subtle);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .meta-box-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .meta-box-val {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--color-text-primary);
+    }
+
+    /* Receipt List */
+    .receipt-list {
+      margin-bottom: 2rem;
+    }
+
+    .receipt-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.92rem;
+    }
+
+    .receipt-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1rem;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--color-text-primary);
+    }
+
+    .order-instruction-box {
+      padding: 1rem 1.25rem;
+      border-radius: var(--radius-md);
+      background-color: #f7ede8;
+      border-left: 4px solid var(--color-accent-ochre);
+      font-size: 0.88rem;
+      color: var(--color-text-primary);
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    .order-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body class="order-page-wrap">
+
+  <!-- Header -->
+  <nav class="site-navbar" style="position: static; background: var(--bg-card);">
+    <div class="container navbar-inner" style="justify-content: space-between;">
+      <a href="/" class="nav-brand">
+        <svg class="brand-emblem" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M16 6v10"/>
+          <path d="M16 10c-3 1-4.5 4-4 7s3 4 4 4"/>
+          <path d="M16 10c3 1 4.5 4 4 7s-3 4-4 4"/>
+        </svg>
+        <div class="brand-names">
+          <span class="brand-primary">OCHRE</span>
+          <span class="brand-secondary">Coffee Roasters</span>
+        </div>
+      </a>
+      <a href="/#menu" class="btn btn-secondary btn-sm">&larr; Back to Menu</a>
+    </div>
+  </nav>
+
+  <!-- Main Order Tracker -->
+  <main class="order-container">
+    <div class="order-card" id="order-card">
+      <div class="order-card-header">
+        <div class="order-success-icon" id="order-header-icon">☕</div>
+        <div class="order-number-pill" id="order-number-display">Loading...</div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: 0.2rem;" id="order-status-heading">
+          Order Received
+        </h1>
+        <p style="font-size: 0.88rem; color: var(--color-text-secondary);" id="order-status-subhead">
+          Your order has been sent to our barista counter.
+        </p>
+      </div>
+
+      <div class="order-card-body">
+        <!-- Live Status Stepper -->
+        <div class="status-stepper-box">
+          <div class="live-step-row">
+            <div class="live-step-item is-done" id="step-received">
+              <div class="live-step-dot">1</div>
+              <span>Received</span>
+            </div>
+            <div class="live-step-item" id="step-preparing">
+              <div class="live-step-dot">2</div>
+              <span>Preparing</span>
+            </div>
+            <div class="live-step-item" id="step-ready">
+              <div class="live-step-dot">3</div>
+              <span>Ready</span>
+            </div>
+            <div class="live-step-item" id="step-completed">
+              <div class="live-step-dot">4</div>
+              <span>Completed</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dining & Payment Meta -->
+        <div class="order-meta-grid">
+          <div class="meta-box">
+            <div class="meta-box-label">Dining Mode</div>
+            <div class="meta-box-val" id="order-dining-type">Dine In</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-box-label">Payment Status</div>
+            <div class="meta-box-val" id="order-payment-badge">PAID</div>
+          </div>
+        </div>
+
+        <!-- Instructions callout -->
+        <div class="order-instruction-box" id="order-instructions">
+          Please take your seat at the table. Our barista will bring your freshly brewed coffees and bites to you.
+        </div>
+
+        <!-- Receipt Breakdown -->
+        <h3 style="font-size: 1.05rem; font-weight: 800; margin-bottom: 0.8rem; color: var(--color-text-primary);">Order Items</h3>
+        <div class="receipt-list" id="receipt-items-container">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div class="receipt-total">
+          <span>Total Paid / Payable</span>
+          <span id="receipt-total-val">&#8377;0</span>
+        </div>
+
+        <div style="margin-top: 2rem;" class="order-actions">
+          <a href="/#menu" class="btn btn-primary" style="padding: 0.75rem 1.8rem;">Order Something Else</a>
+          <button type="button" class="btn btn-secondary" onclick="window.print()" style="padding: 0.75rem 1.4rem;">Print Receipt</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Extract orderNumber from URL params or pathname
+    const urlParams = new URLSearchParams(window.location.search);
+    let orderNumber = urlParams.get('orderNumber');
+
+    if (!orderNumber) {
+      const parts = window.location.pathname.split('/');
+      const lastPart = parts[parts.length - 1];
+      if (lastPart && lastPart.toUpperCase().startsWith('CAF-')) {
+        orderNumber = lastPart;
+      }
+    }
+
+    if (!orderNumber) {
+      document.getElementById('order-number-display').textContent = 'Order Not Specified';
+      document.getElementById('order-status-heading').textContent = 'No Order Found';
+      document.getElementById('order-status-subhead').textContent = 'Please check your order link or explore our menu.';
+    } else {
+      orderNumber = orderNumber.toUpperCase();
+      document.getElementById('order-number-display').textContent = orderNumber;
+      fetchOrderDetails();
+      // Poll order status every 4 seconds
+      const pollInterval = setInterval(fetchOrderDetails, 4000);
+    }
+
+    async function fetchOrderDetails() {
+      if (!orderNumber) return;
+      try {
+        const res = await fetch(`/api/orders/${orderNumber}`);
+        const json = await res.json();
+
+        if (!json.success || !json.data) {
+          console.warn('Order not found or error loading:', json);
+          return;
+        }
+
+        const data = json.data;
+        updateOrderUI(data);
+
+        // Stop polling if completed or cancelled
+        if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
+          clearInterval(pollInterval);
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }
+
+    function updateOrderUI(order) {
+      // 1. Heading & Icon
+      const heading = document.getElementById('order-status-heading');
+      const subhead = document.getElementById('order-status-subhead');
+      const icon = document.getElementById('order-header-icon');
+
+      if (order.status === 'RECEIVED') {
+        heading.textContent = 'Order Received';
+        subhead.textContent = 'Your order is queued at the barista counter.';
+        icon.textContent = '☕';
+      } else if (order.status === 'CONFIRMED' || order.status === 'PREPARING') {
+        heading.textContent = 'Currently Preparing';
+        subhead.textContent = 'Your specialty pour-overs & bites are being handcrafted right now.';
+        icon.textContent = '✨';
+      } else if (order.status === 'READY') {
+        heading.textContent = '🎉 Order Ready!';
+        subhead.textContent = order.orderType === 'DINE_IN' 
+          ? 'Your order is on its way to your table!' 
+          : 'Your takeaway bag is ready at the pickup counter!';
+        icon.textContent = '🔔';
+      } else if (order.status === 'COMPLETED') {
+        heading.textContent = 'Order Complete';
+        subhead.textContent = 'Thank you for savoring the craft with us. Have a wonderful day!';
+        icon.textContent = '🌿';
+      } else if (order.status === 'CANCELLED') {
+        heading.textContent = 'Order Cancelled';
+        subhead.textContent = 'This order has been cancelled.';
+        icon.textContent = '⚠️';
+      }
+
+      // 2. Stepper
+      const stepReceived = document.getElementById('step-received');
+      const stepPrep = document.getElementById('step-preparing');
+      const stepReady = document.getElementById('step-ready');
+      const stepComp = document.getElementById('step-completed');
+
+      const statuses = ['RECEIVED', 'PREPARING', 'READY', 'COMPLETED'];
+      const currentIndex = order.status === 'CONFIRMED' ? 1 : statuses.indexOf(order.status);
+
+      [stepReceived, stepPrep, stepReady, stepComp].forEach((el, idx) => {
+        if (!el) return;
+        el.classList.toggle('is-done', idx < currentIndex);
+        el.classList.toggle('is-active', idx === currentIndex);
+      });
+
+      // 3. Dining Mode & Payment
+      const diningEl = document.getElementById('order-dining-type');
+      if (diningEl) {
+        diningEl.textContent = order.orderType === 'DINE_IN' 
+          ? `🍽️ Table ${order.tableNumber < 10 ? '0' + order.tableNumber : order.tableNumber}` 
+          : '🛍️ Takeaway';
+      }
+
+      const payEl = document.getElementById('order-payment-badge');
+      if (payEl) {
+        if (order.paymentStatus === 'PAID') {
+          payEl.innerHTML = '<span style="color: var(--color-veg);">✓ PAID (' + order.paymentMethod + ')</span>';
+        } else {
+          payEl.innerHTML = '<span style="color: #c97a14;">⏳ PENDING (Pay at Counter)</span>';
+        }
+      }
+
+      // 4. Instructions
+      const instEl = document.getElementById('order-instructions');
+      if (instEl) {
+        if (order.orderType === 'DINE_IN') {
+          instEl.textContent = `You are seated at Table ${order.tableNumber}. Our team will bring your order to your table shortly.`;
+        } else {
+          instEl.textContent = 'Please wait near the pickup counter. When your order status turns "Ready", collect your package by showing this order number.';
+        }
+      }
+
+      // 5. Items Receipt
+      const receiptContainer = document.getElementById('receipt-items-container');
+      const totalVal = document.getElementById('receipt-total-val');
+
+      if (receiptContainer && order.items) {
+        receiptContainer.innerHTML = order.items.map(i => `
+          <div class="receipt-item">
+            <span>${i.name} × ${i.quantity}</span>
+            <span style="font-weight: 700; color: var(--color-text-primary);">₹${i.subtotal}</span>
+          </div>
+        `).join('');
+      }
+
+      if (totalVal) totalVal.textContent = `₹${order.total}`;
+    }
+  </script>
+</body>
+</html>

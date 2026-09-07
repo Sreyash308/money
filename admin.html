@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | Ochre Coffee Roasters</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#1e1b17">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23b85d39'/><path d='M16 8c-3 4-3 10 0 14 3-4 3-10 0-14z' fill='%23fff'/></svg>">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    :root {
+      --admin-bg: #141210;
+      --admin-card: #1f1c18;
+      --admin-card-light: #282420;
+      --admin-border: rgba(255, 255, 255, 0.08);
+      --admin-text-main: #fbfaf8;
+      --admin-text-muted: #a39c91;
+    }
+
+    body.admin-body {
+      background-color: var(--admin-bg);
+      color: var(--admin-text-main);
+      font-family: var(--font-sans);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navbar */
+    .admin-navbar {
+      background-color: var(--admin-card);
+      border-bottom: 1px solid var(--admin-border);
+      padding: 0.9rem 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .admin-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .admin-badge {
+      background-color: var(--color-accent-ochre);
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .admin-tabs {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .admin-tab-btn {
+      padding: 0.55rem 1.1rem;
+      border-radius: var(--radius-full);
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: var(--admin-text-muted);
+      cursor: pointer;
+      background: none;
+      border: 1px solid transparent;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .admin-tab-btn:hover {
+      color: var(--admin-text-main);
+      background-color: var(--admin-card-light);
+    }
+
+    .admin-tab-btn.is-active {
+      color: #fff;
+      background-color: var(--color-accent-ochre);
+      border-color: var(--color-accent-ochre);
+    }
+
+    /* Stats Overview */
+    .admin-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background-color: var(--admin-card);
+      border: 1px solid var(--admin-border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem 1.4rem;
+    }
+
+    .stat-card-label {
+      font-size: 0.78rem;
+      color: var(--admin-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-card-value {
+      font-size: 1.8rem;
+      font-weight: 850;
+      color: var(--admin-text-main);
+    }
+
+    /* Live Orders Tab */
+    .orders-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .order-filters-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      padding: 0.4rem 0.9rem;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 700;
+      background-color: var(--admin-card);
+      border: 1px solid var(--admin-border);
+      color: var(--admin-text-muted);
+      cursor: pointer;
+    }
+
+    .filter-pill.is-active {
+      background-color: var(--color-accent-ochre);
+      color: #fff;
+      border-color: var(--color-accent-ochre);
+    }
+
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .admin-order-card {
+      background-color: var(--admin-card);
+      border: 1px solid var(--admin-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform var(--transition-fast);
+    }
+
+    .admin-order-card.status-received {
+      border-left: 4px solid #f2994a;
+    }
+    .admin-order-card.status-preparing {
+      border-left: 4px solid #2f80ed;
+    }
+    .admin-order-card.status-ready {
+      border-left: 4px solid #27ae60;
+    }
+    .admin-order-card.status-completed {
+      border-left: 4px solid #827b70;
+      opacity: 0.75;
+    }
+
+    .admin-order-head {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--admin-border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .order-num-tag {
+      font-size: 1.15rem;
+      font-weight: 850;
+      letter-spacing: 0.04em;
+    }
+
+    .admin-order-body {
+      padding: 1.1rem 1.25rem;
+      flex: 1;
+    }
+
+    .order-customer-info {
+      font-size: 0.86rem;
+      color: var(--admin-text-muted);
+      margin-bottom: 0.8rem;
+    }
+
+    .order-items-table {
+      width: 100%;
+      margin: 0.8rem 0;
+      font-size: 0.85rem;
+      border-collapse: collapse;
+    }
+
+    .order-items-table td {
+      padding: 0.35rem 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+    }
+
+    .admin-order-footer {
+      padding: 1rem 1.25rem;
+      background-color: var(--admin-card-light);
+      border-top: 1px solid var(--admin-border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .action-btns-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* Menu Management Table */
+    .menu-table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: var(--admin-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--admin-border);
+    }
+
+    .menu-table th {
+      background-color: var(--admin-card-light);
+      padding: 0.9rem 1.2rem;
+      text-align: left;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--admin-text-muted);
+    }
+
+    .menu-table td {
+      padding: 0.9rem 1.2rem;
+      border-bottom: 1px solid var(--admin-border);
+      font-size: 0.88rem;
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #c5221f;
+      transition: .3s;
+      border-radius: 34px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: #27ae60;
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Login Overlay */
+    .admin-login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #141210;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .admin-login-card {
+      width: 100%;
+      max-width: 420px;
+      background-color: var(--admin-card);
+      border: 1px solid var(--admin-border);
+      border-radius: var(--radius-lg);
+      padding: 2.4rem 2rem;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Modal Form Overlays */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body class="admin-body">
+
+  <!-- ==========================================================================
+       ADMIN LOGIN OVERLAY (Shows when not authenticated)
+       ========================================================================== -->
+  <div class="admin-login-overlay" id="login-overlay">
+    <div class="admin-login-card">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <svg class="brand-emblem" viewBox="0 0 32 32" fill="none" stroke="#b85d39" stroke-width="2" style="width: 44px; height: 44px; margin-bottom: 0.8rem;">
+          <circle cx="16" cy="16" r="13" stroke="#b85d39" stroke-width="2"/>
+          <path d="M16 6v10"/>
+          <path d="M16 10c-3 1-4.5 4-4 7s3 4 4 4"/>
+          <path d="M16 10c3 1 4.5 4 4 7s-3 4-4 4"/>
+        </svg>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.3rem;">OCHRE Coffee Roasters</h2>
+        <p style="font-size: 0.84rem; color: var(--admin-text-muted);">Restaurant Management Portal</p>
+      </div>
+
+      <form id="login-form">
+        <div class="checkout-form-group">
+          <label class="checkout-label" style="color: var(--admin-text-main);" for="login-email">Email Address</label>
+          <input type="email" id="login-email" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" value="owner@ochrecoffee.com" required>
+        </div>
+
+        <div class="checkout-form-group">
+          <label class="checkout-label" style="color: var(--admin-text-main);" for="login-password">Password</label>
+          <input type="password" id="login-password" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" value="ochreAdmin2026!" required>
+        </div>
+
+        <div id="login-error-msg" style="display: none; padding: 0.75rem; background: #491212; color: #ff9e9e; border-radius: 6px; font-size: 0.82rem; margin-bottom: 1.2rem;"></div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem;" id="login-submit-btn">
+          Sign In to Portal
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       ADMIN NAVIGATION BAR
+       ========================================================================== -->
+  <header class="admin-navbar">
+    <div class="admin-brand">
+      <a href="/" target="_blank" title="View Customer Website" style="display: flex; align-items: center; gap: 0.5rem; color: #fff;">
+        <span style="font-size: 1.25rem;">☕</span>
+        <span>OCHRE ROASTERS</span>
+      </a>
+      <span class="admin-badge">Admin</span>
+      <span style="font-size: 0.78rem; color: #27ae60;" id="live-indicator">● Live</span>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="admin-tabs">
+      <button class="admin-tab-btn is-active" data-tab="orders" id="tab-btn-orders">
+        <span>📋 Orders</span>
+        <span class="cart-badge" id="pending-orders-badge" style="background:#f2994a; color:#fff;">0</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="menu" id="tab-btn-menu">
+        <span>🍵 Menu Manager</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="tables" id="tab-btn-tables">
+        <span>🪑 Tables</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="settings" id="tab-btn-settings">
+        <span>⚙️ UPI &amp; Settings</span>
+      </button>
+    </nav>
+
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <span style="font-size: 0.84rem; color: var(--admin-text-muted);" id="user-display">owner@ochrecoffee.com</span>
+      <button class="btn btn-secondary btn-sm" id="logout-btn" style="border-color: var(--admin-border); color: var(--admin-text-main);">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MAIN DASHBOARD CONTENT
+       ========================================================================== -->
+  <main style="max-width: 1360px; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; flex: 1;">
+    
+    <!-- Top Stats Bar -->
+    <div class="admin-stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-label">Today's Orders</div>
+        <div class="stat-card-value" id="stat-today-orders">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Today's Revenue</div>
+        <div class="stat-card-value" style="color: #27ae60;" id="stat-today-revenue">&#8377;0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">New / Pending Orders</div>
+        <div class="stat-card-value" style="color: #f2994a;" id="stat-pending-orders">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Currently Preparing</div>
+        <div class="stat-card-value" style="color: #2f80ed;" id="stat-preparing-orders">0</div>
+      </div>
+    </div>
+
+    <!-- TAB 1: LIVE ORDERS QUEUE -->
+    <section id="panel-orders" class="admin-tab-panel">
+      <div class="orders-toolbar">
+        <div class="order-filters-group">
+          <button class="filter-pill is-active" data-filter-status="ALL">All Orders</button>
+          <button class="filter-pill" data-filter-status="RECEIVED">🔴 Received</button>
+          <button class="filter-pill" data-filter-status="PREPARING">🔵 Preparing</button>
+          <button class="filter-pill" data-filter-status="READY">🟢 Ready</button>
+          <button class="filter-pill" data-filter-status="COMPLETED">⚪ Completed</button>
+        </div>
+
+        <div style="display: flex; gap: 0.6rem; align-items: center;">
+          <input type="text" id="order-search-input" placeholder="Search order #, guest, phone..." 
+                 class="checkout-input" style="background: var(--admin-card); color: #fff; border-color: var(--admin-border); width: 250px; padding: 0.45rem 0.9rem; font-size: 0.85rem;">
+          <button class="btn btn-secondary btn-sm" onclick="fetchOrders()" style="border-color: var(--admin-border); color: #fff;">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="orders-grid" id="admin-orders-container">
+        <!-- Dynamically rendered order cards -->
+      </div>
+    </section>
+
+    <!-- TAB 2: MENU MANAGEMENT -->
+    <section id="panel-menu" class="admin-tab-panel" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+          <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 0.2rem;">Menu Items &amp; Availability</h2>
+          <p style="font-size: 0.85rem; color: var(--admin-text-muted);">Toggle items immediately on/off when out of stock. Changes take effect on the customer site instantly.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-add-product">+ Add Product</button>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Dietary</th>
+            <th>Availability</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="admin-menu-table-body">
+          <!-- Populated from /api/admin/products -->
+        </tbody>
+      </table>
+    </section>
+
+    <!-- TAB 3: TABLES -->
+    <section id="panel-tables" class="admin-tab-panel" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+          <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 0.2rem;">Cafe Tables &amp; Occupancy</h2>
+          <p style="font-size: 0.85rem; color: var(--admin-text-muted);">Track occupied tables and seating capacities.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-add-table">+ Add Table</button>
+      </div>
+
+      <div class="orders-grid" id="admin-tables-container">
+        <!-- Populated from /api/admin/tables -->
+      </div>
+    </section>
+
+    <!-- TAB 4: SETTINGS & UPI CONFIGURATION -->
+    <section id="panel-settings" class="admin-tab-panel" style="display: none;">
+      <div style="max-width: 780px; background: var(--admin-card); border: 1px solid var(--admin-border); border-radius: var(--radius-lg); padding: 2rem;">
+        <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 0.5rem;">UPI &amp; Payment Gateway Configuration</h2>
+        <p style="font-size: 0.88rem; color: var(--admin-text-muted); margin-bottom: 2rem;">
+          Review the active UPI merchant settlement configuration and production checklist.
+        </p>
+
+        <div style="background: var(--admin-card-light); padding: 1.25rem; border-radius: var(--radius-md); border-left: 4px solid var(--color-accent-ochre); margin-bottom: 2rem;">
+          <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--admin-text-muted); font-weight: 700; margin-bottom: 0.3rem;">Current Configured Destination UPI ID</div>
+          <div style="font-size: 1.25rem; font-weight: 800; color: #fff;">9182916879@ybl</div>
+          <p style="font-size: 0.84rem; color: var(--admin-text-muted); margin-top: 0.4rem;">
+            Customer UPI payments through the payment gateway are configured to settle to this UPI VPA.
+          </p>
+        </div>
+
+        <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 0.8rem;">Merchant Production Activation Checklist</h3>
+        <ol style="font-size: 0.88rem; color: var(--admin-text-muted); line-height: 1.8; padding-left: 1.2rem; margin-bottom: 2rem;">
+          <li><strong style="color: #fff;">Razorpay Account Setup:</strong> Sign up at <a href="https://dashboard.razorpay.com" target="_blank" style="color: var(--color-accent-ochre);">Razorpay Dashboard</a> and complete merchant business KYC.</li>
+          <li><strong style="color: #fff;">Link Destination Account:</strong> In Razorpay Dashboard &rarr; <em>Settings &rarr; Bank Account &amp; Settlements</em>, link your primary bank account and verify UPI settlement to <code>9182916879@ybl</code>.</li>
+          <li><strong style="color: #fff;">Obtain Live API Keys:</strong> Generate live <code>RAZORPAY_KEY_ID</code> and <code>RAZORPAY_KEY_SECRET</code> from <em>API Keys</em>.</li>
+          <li><strong style="color: #fff;">Configure Webhook:</strong> In Razorpay Dashboard &rarr; <em>Webhooks</em>, add your Vercel endpoint: <code>https://your-domain.vercel.app/api/payments/razorpay/webhook</code> with secret <code>RAZORPAY_WEBHOOK_SECRET</code>, listening for <code>payment.captured</code> and <code>order.paid</code>.</li>
+        </ol>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Product Modal (Add / Edit) -->
+  <div class="modal-overlay" id="product-modal" style="display: none;">
+    <div class="admin-login-card" style="max-width: 520px;">
+      <h3 id="product-modal-title" style="font-size: 1.2rem; font-weight: 800; margin-bottom: 1.2rem;">Add Menu Product</h3>
+      <form id="product-form">
+        <input type="hidden" id="prod-form-id">
+        <div class="checkout-form-group">
+          <label class="checkout-label" style="color: #fff;" for="prod-name">Product Name *</label>
+          <input type="text" id="prod-name" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" required>
+        </div>
+        <div class="checkout-form-group">
+          <label class="checkout-label" style="color: #fff;" for="prod-price">Price (₹) *</label>
+          <input type="number" id="prod-price" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" required min="1">
+        </div>
+        <div class="checkout-form-group">
+          <label class="checkout-label" style="color: #fff;" for="prod-category">Category *</label>
+          <select id="prod-category" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" required>
+            <option value="cat_coffee">Coffee &amp; Brews</option>
+            <option value="cat_cold">Coolers &amp; Iced</option>
+            <option value="cat_tea">Tea &amp; Infusions</option>
+            <option value="cat_food">Kitchen &amp; Bites</option>
+            <option value="cat_dessert">Bakery &amp; Sweet</option>
+          </select>
+        </div>
+        <div class="checkout-form-group">
+          <label class="checkout-label" style="color: #fff;" for="prod-desc">Description</label>
+          <textarea id="prod-desc" class="checkout-textarea" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" rows="2"></textarea>
+        </div>
+        <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeProductModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Audio Chime for incoming new orders -->
+  <audio id="order-chime" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/DCkU8QDG2v5teicTkGKn/B7s6ZTRgQWq/j059LFA5dr+fUoEwXEWSw59WiTRgSYrDn1aFMFxNksOfVoU0XEWSw59WhTBc=" type="audio/wav">
+  </audio>
+
+  <script>
+    let authToken = localStorage.getItem('ochre_admin_token') || null;
+    let currentFilterStatus = 'ALL';
+    let prevPendingCount = 0;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAdminAuth();
+      initTabNavigation();
+    });
+
+    function initAdminAuth() {
+      const loginOverlay = document.getElementById('login-overlay');
+      const loginForm = document.getElementById('login-form');
+      const logoutBtn = document.getElementById('logout-btn');
+
+      if (authToken) {
+        verifySession();
+      } else {
+        loginOverlay.style.display = 'flex';
+      }
+
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const errorEl = document.getElementById('login-error-msg');
+
+        try {
+          const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          const json = await res.json();
+
+          if (json.success && json.data) {
+            authToken = json.data.token;
+            localStorage.setItem('ochre_admin_token', authToken);
+            loginOverlay.style.display = 'none';
+            startAdminPolling();
+          } else {
+            errorEl.textContent = json.error?.message || 'Login failed.';
+            errorEl.style.display = 'block';
+          }
+        } catch (err) {
+          errorEl.textContent = 'Server connection error.';
+          errorEl.style.display = 'block';
+        }
+      });
+
+      logoutBtn.addEventListener('click', async () => {
+        localStorage.removeItem('ochre_admin_token');
+        authToken = null;
+        await fetch('/api/admin/logout', { method: 'POST' });
+        window.location.reload();
+      });
+    }
+
+    async function verifySession() {
+      try {
+        const res = await fetch('/api/admin/me', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+          document.getElementById('login-overlay').style.display = 'none';
+          startAdminPolling();
+        } else {
+          localStorage.removeItem('ochre_admin_token');
+          authToken = null;
+          document.getElementById('login-overlay').style.display = 'flex';
+        }
+      } catch (e) {
+        document.getElementById('login-overlay').style.display = 'flex';
+      }
+    }
+
+    function startAdminPolling() {
+      fetchStats();
+      fetchOrders();
+      setInterval(() => {
+        if (authToken) {
+          fetchStats();
+          fetchOrders(true);
+        }
+      }, 5000);
+    }
+
+    // Tabs Controller
+    function initTabNavigation() {
+      const tabBtns = document.querySelectorAll('.admin-tab-btn');
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.getAttribute('data-tab');
+          tabBtns.forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+
+          document.querySelectorAll('.admin-tab-panel').forEach(p => p.style.display = 'none');
+          document.getElementById(`panel-${tab}`).style.display = 'block';
+
+          if (tab === 'menu') fetchAdminMenu();
+          if (tab === 'tables') fetchAdminTables();
+        });
+      });
+
+      // Filter pills
+      document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('is-active'));
+          pill.classList.add('is-active');
+          currentFilterStatus = pill.getAttribute('data-filter-status');
+          fetchOrders();
+        });
+      });
+
+      // Search input
+      const searchInput = document.getElementById('order-search-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => fetchOrders());
+      }
+    }
+
+    // Fetch Stats
+    async function fetchStats() {
+      if (!authToken) return;
+      try {
+        const res = await fetch('/api/admin/stats', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          const s = json.data;
+          document.getElementById('stat-today-orders').textContent = s.todayOrders;
+          document.getElementById('stat-today-revenue').textContent = `₹${s.todayRevenue}`;
+          document.getElementById('stat-pending-orders').textContent = s.pending;
+          document.getElementById('stat-preparing-orders').textContent = s.preparing;
+          document.getElementById('pending-orders-badge').textContent = s.pending;
+
+          if (s.pending > prevPendingCount) {
+            playOrderChime();
+          }
+          prevPendingCount = s.pending;
+        }
+      } catch (err) {}
+    }
+
+    function playOrderChime() {
+      try {
+        const chime = document.getElementById('order-chime');
+        if (chime) chime.play().catch(() => {});
+      } catch (e) {}
+    }
+
+    // Fetch Orders
+    async function fetchOrders(silent = false) {
+      if (!authToken) return;
+      try {
+        const searchVal = document.getElementById('order-search-input')?.value || '';
+        let url = `/api/admin/orders?status=${currentFilterStatus}`;
+        if (searchVal.trim()) url += `&search=${encodeURIComponent(searchVal.trim())}`;
+
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          renderOrders(json.data);
+        }
+      } catch (err) {
+        if (!silent) console.error('Error fetching orders:', err);
+      }
+    }
+
+    function renderOrders(orders) {
+      const container = document.getElementById('admin-orders-container');
+      if (!container) return;
+
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 4rem; color: var(--admin-text-muted);">
+            No orders match the current filter.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = orders.map(ord => {
+        const statusClass = `status-${ord.status.toLowerCase()}`;
+        const isPaid = ord.payment_status === 'PAID';
+
+        return `
+          <div class="admin-order-card ${statusClass}" id="ord-card-${ord.id}">
+            <div class="admin-order-head">
+              <div>
+                <div class="order-num-tag">${ord.order_number}</div>
+                <div style="font-size: 0.82rem; font-weight: 700; color: #fff; margin-top: 2px;">
+                  ${ord.order_type === 'DINE_IN' 
+                    ? `🍽️ Table ${ord.table_number < 10 ? '0' + ord.table_number : ord.table_number}` 
+                    : '🛍️ Takeaway'}
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <span class="admin-badge" style="background: ${getStatusColor(ord.status)}">${ord.status}</span>
+                <div style="font-size: 0.75rem; margin-top: 4px; color: ${isPaid ? '#27ae60' : '#f2994a'}; font-weight: 700;">
+                  ${isPaid ? '✓ PAID (' + ord.payment_method + ')' : '⏳ PAYMENT PENDING'}
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-order-body">
+              <div class="order-customer-info">
+                <strong>Guest:</strong> ${ord.customer_name} &bull; <a href="tel:${ord.customer_phone}" style="color: var(--color-accent-ochre);">${ord.customer_phone}</a>
+                <div style="font-size: 0.76rem; color: var(--admin-text-muted); margin-top: 2px;">
+                  ${new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+
+              ${ord.notes ? `
+                <div style="background: rgba(242, 153, 74, 0.1); border-left: 3px solid #f2994a; padding: 0.4rem 0.6rem; font-size: 0.8rem; margin-bottom: 0.8rem; color: #f2994a;">
+                  <strong>Note:</strong> ${ord.notes}
+                </div>
+              ` : ''}
+
+              <table class="order-items-table">
+                ${(ord.items || []).map(i => `
+                  <tr>
+                    <td>${i.quantity}× ${i.name}</td>
+                    <td style="text-align: right; font-weight: 700;">₹${i.subtotal}</td>
+                  </tr>
+                `).join('')}
+              </table>
+
+              <div style="display: flex; justify-content: space-between; font-size: 1.05rem; font-weight: 850; padding-top: 0.5rem;">
+                <span>Total</span>
+                <span>₹${ord.total}</span>
+              </div>
+            </div>
+
+            <div class="admin-order-footer">
+              <div class="action-btns-row">
+                ${!isPaid ? `
+                  <button class="btn btn-sm" style="background:#27ae60; color:#fff;" onclick="markOrderPaid('${ord.id}')">
+                    💵 Mark Paid
+                  </button>
+                ` : ''}
+
+                ${ord.status === 'RECEIVED' ? `
+                  <button class="btn btn-primary btn-sm" onclick="updateOrderStatus('${ord.id}', 'PREPARING')">
+                    ☕ Accept &amp; Prepare
+                  </button>
+                ` : ''}
+
+                ${ord.status === 'PREPARING' ? `
+                  <button class="btn btn-sm" style="background: #27ae60; color: #fff;" onclick="updateOrderStatus('${ord.id}', 'READY')">
+                    🔔 Mark Ready
+                  </button>
+                ` : ''}
+
+                ${ord.status === 'READY' ? `
+                  <button class="btn btn-secondary btn-sm" style="border-color: #27ae60; color: #27ae60;" onclick="updateOrderStatus('${ord.id}', 'COMPLETED')">
+                    ✓ Complete
+                  </button>
+                ` : ''}
+
+                ${ord.status !== 'COMPLETED' && ord.status !== 'CANCELLED' ? `
+                  <button class="btn btn-secondary btn-sm" style="border-color: #eb5757; color: #eb5757; margin-left: auto;" onclick="updateOrderStatus('${ord.id}', 'CANCELLED')">
+                    Cancel
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getStatusColor(status) {
+      switch(status) {
+        case 'RECEIVED': return '#f2994a';
+        case 'PREPARING': return '#2f80ed';
+        case 'READY': return '#27ae60';
+        case 'COMPLETED': return '#827b70';
+        default: return '#eb5757';
+      }
+    }
+
+    async function updateOrderStatus(orderId, status) {
+      try {
+        const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ status })
+        });
+        if (res.ok) {
+          fetchOrders();
+          fetchStats();
+        }
+      } catch (err) {
+        alert('Failed to update status.');
+      }
+    }
+
+    async function markOrderPaid(orderId) {
+      try {
+        const res = await fetch(`/api/admin/orders/${orderId}/mark-paid`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+          fetchOrders();
+          fetchStats();
+        }
+      } catch (err) {
+        alert('Failed to mark paid.');
+      }
+    }
+
+    // Menu Management Actions
+    async function fetchAdminMenu() {
+      try {
+        const res = await fetch('/api/admin/products', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          renderMenuTable(json.data.products);
+        }
+      } catch (err) {
+        console.error('Error fetching admin menu:', err);
+      }
+    }
+
+    function renderMenuTable(products) {
+      const tbody = document.getElementById('admin-menu-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = products.map(p => `
+        <tr>
+          <td>
+            <strong>${p.name}</strong>
+            <div style="font-size: 0.78rem; color: var(--admin-text-muted);">${p.description || ''}</div>
+          </td>
+          <td>${p.category_name || p.category_id}</td>
+          <td><strong>₹${p.price}</strong></td>
+          <td>
+            ${p.is_veg ? '<span class="pill-tag tag-veg">Veg</span>' : ''}
+            ${p.is_cold ? '<span class="pill-tag tag-cold">Cold</span>' : ''}
+          </td>
+          <td>
+            <label class="toggle-switch">
+              <input type="checkbox" ${p.available ? 'checked' : ''} onchange="toggleProductAvailability('${p.id}')">
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="font-size: 0.76rem; font-weight: 700; margin-left: 0.5rem; color: ${p.available ? '#27ae60' : '#eb5757'};">
+              ${p.available ? 'AVAILABLE' : 'UNAVAILABLE'}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="editProduct('${p.id}', '${escapeHtml(p.name)}', ${p.price}, '${p.category_id}', '${escapeHtml(p.description || '')}')">Edit</button>
+            <button class="btn btn-secondary btn-sm" style="color: #eb5757; border-color: rgba(235, 87, 87, 0.4);" onclick="deleteProduct('${p.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    async function toggleProductAvailability(id) {
+      try {
+        await fetch(`/api/admin/products/${id}/availability`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        fetchAdminMenu();
+      } catch (err) {
+        alert('Failed to toggle availability.');
+      }
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm('Remove this product from the menu?')) return;
+      try {
+        await fetch(`/api/admin/products/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        fetchAdminMenu();
+      } catch (err) {
+        alert('Failed to delete product.');
+      }
+    }
+
+    // Product Modal
+    const prodModal = document.getElementById('product-modal');
+    const prodForm = document.getElementById('product-form');
+
+    document.getElementById('btn-add-product').addEventListener('click', () => {
+      document.getElementById('product-modal-title').textContent = 'Add Menu Product';
+      document.getElementById('prod-form-id').value = '';
+      prodForm.reset();
+      prodModal.style.display = 'flex';
+    });
+
+    function closeProductModal() {
+      prodModal.style.display = 'none';
+    }
+
+    function editProduct(id, name, price, category, desc) {
+      document.getElementById('product-modal-title').textContent = 'Edit Menu Product';
+      document.getElementById('prod-form-id').value = id;
+      document.getElementById('prod-name').value = name;
+      document.getElementById('prod-price').value = price;
+      document.getElementById('prod-category').value = category;
+      document.getElementById('prod-desc').value = desc;
+      prodModal.style.display = 'flex';
+    }
+
+    prodForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('prod-form-id').value;
+      const name = document.getElementById('prod-name').value;
+      const price = document.getElementById('prod-price').value;
+      const categoryId = document.getElementById('prod-category').value;
+      const description = document.getElementById('prod-desc').value;
+
+      const payload = { name, price, categoryId, description };
+
+      const url = id ? `/api/admin/products/${id}` : '/api/admin/products';
+      const method = id ? 'PUT' : 'POST';
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          closeProductModal();
+          fetchAdminMenu();
+        } else {
+          alert('Failed to save product.');
+        }
+      } catch (e) {
+        alert('Network error.');
+      }
+    });
+
+    // Tables Management
+    async function fetchAdminTables() {
+      try {
+        const res = await fetch('/api/admin/tables', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          renderTables(json.data);
+        }
+      } catch (err) {
+        console.error('Error fetching admin tables:', err);
+      }
+    }
+
+    function renderTables(tables) {
+      const container = document.getElementById('admin-tables-container');
+      if (!container) return;
+
+      container.innerHTML = tables.map(tbl => `
+        <div class="stat-card" style="border-left: 4px solid ${tbl.activeOrder ? '#eb5757' : '#27ae60'};">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h4 style="font-size: 1.15rem; font-weight: 800; color: #fff;">${tbl.label}</h4>
+            <span class="admin-badge" style="background: ${tbl.activeOrder ? '#eb5757' : '#27ae60'};">
+              ${tbl.activeOrder ? 'OCCUPIED' : 'VACANT'}
+            </span>
+          </div>
+          <div style="font-size: 0.84rem; color: var(--admin-text-muted);">
+            Capacity: <strong>${tbl.capacity} Seats</strong>
+          </div>
+          ${tbl.activeOrder ? `
+            <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(235,87,87,0.1); border-radius: 6px; font-size: 0.82rem; color: #fff;">
+              Active Order: <strong>${tbl.activeOrder.order_number}</strong> (${tbl.activeOrder.customer_name})<br>
+              Total: <strong>₹${tbl.activeOrder.total}</strong>
+            </div>
+          ` : `
+            <div style="margin-top: 0.75rem; font-size: 0.82rem; color: #27ae60;">
+              Ready for guests
+            </div>
+          `}
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('btn-add-table').addEventListener('click', async () => {
+      const num = prompt('Enter table number (e.g. 11):');
+      if (!num) return;
+      const label = prompt('Enter table label (e.g. Table 11):', `Table ${num}`);
+      const cap = prompt('Enter seating capacity:', '4');
+
+      try {
+        const res = await fetch('/api/admin/tables', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ tableNumber: num, label, capacity: cap })
+        });
+        if (res.ok) {
+          fetchAdminTables();
+        } else {
+          const j = await res.json();
+          alert(j.error?.message || 'Failed to add table.');
+        }
+      } catch (e) {
+        alert('Network error.');
+      }
+    });
+  </script>
+</body>
+</html>

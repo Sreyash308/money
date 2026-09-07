@@ -1,0 +1,25 @@
+{
+  "name": "ochre-coffee-roasters",
+  "version": "1.0.0",
+  "description": "Ochre Coffee Roasters - Specialty Coffee Ordering, Cart, UPI Payment & Admin System",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "seed": "node db/seed.js",
+    "test": "node tests/test-runner.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "razorpay": "^2.9.5"
+  },
+  "keywords": ["coffee", "restaurant-ordering", "cafe", "razorpay", "upi", "admin-dashboard"],
+  "author": "Ochre Coffee Roasters",
+  "license": "ISC"
+}
