@@ -12,6 +12,7 @@ const router = express.Router();
 const db = require('../db');
 const { requireAdmin, getJwtSecret } = require('../middleware/auth');
 const { notifyMenuChange } = require('./menu');
+const { notifyOrderChange } = require('./orders');
 
 // POST /api/admin/login - Admin Login
 router.post('/login', async (req, res) => {
@@ -189,7 +190,7 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
       });
     }
 
-    const order = await db.get('SELECT id, order_number, status FROM orders WHERE id = ?', [id]);
+    const order = await db.get('SELECT id, order_number, status, table_number, order_type, payment_status FROM orders WHERE id = ?', [id]);
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -200,11 +201,27 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
     const now = new Date().toISOString();
     await db.run('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', [status, now, id]);
 
-    console.log(`📋 Order ${order.order_number} status updated to: ${status}`);
+    if (status === 'COMPLETED') {
+      console.log(`🧹 Table ${order.table_number ? '#' + order.table_number : 'N/A'} cleaned & order ${order.order_number} completed. Table is now VACANT.`);
+    } else {
+      console.log(`📋 Order ${order.order_number} status updated to: ${status}`);
+    }
+
+    notifyOrderChange({
+      action: 'STATUS_UPDATED',
+      orderId: id,
+      orderNumber: order.order_number,
+      status,
+      previousStatus: order.status,
+      paymentStatus: order.payment_status,
+      tableNumber: order.table_number,
+      orderType: order.order_type,
+      isTableVacant: status === 'COMPLETED' || status === 'CANCELLED'
+    });
 
     res.json({
       success: true,
-      data: { id, status }
+      data: { id, status, isTableVacant: status === 'COMPLETED' || status === 'CANCELLED' }
     });
   } catch (err) {
     console.error('Error updating order status:', err);
@@ -215,11 +232,11 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/orders/:id/mark-paid - Mark Counter Payment as Paid
+// POST /api/admin/orders/:id/mark-paid - Mark Counter/UPI Payment as Paid & Accept Order
 router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await db.get('SELECT id, order_number, payment_status, payment_method, status FROM orders WHERE id = ?', [id]);
+    const order = await db.get('SELECT id, order_number, payment_status, payment_method, status, table_number, order_type FROM orders WHERE id = ?', [id]);
 
     if (!order) {
       return res.status(404).json({
@@ -229,14 +246,16 @@ router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
     }
 
     const now = new Date().toISOString();
+    const newStatus = order.status === 'RECEIVED' ? 'CONFIRMED' : order.status;
+
     await db.transaction(async (tx) => {
       await tx.run(
         `UPDATE orders
          SET payment_status = 'PAID',
-             status = CASE WHEN status = 'RECEIVED' THEN 'CONFIRMED' ELSE status END,
+             status = ?,
              updated_at = ?
          WHERE id = ?`,
-        [now, id]
+        [newStatus, now, id]
       );
 
       await tx.run(
@@ -248,11 +267,21 @@ router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
       );
     });
 
-    console.log(`💵 Payment (${order.payment_method}) marked PAID for order: ${order.order_number}`);
+    console.log(`💵 Payment (${order.payment_method}) marked PAID & accepted for order: ${order.order_number}`);
+
+    notifyOrderChange({
+      action: 'PAID_AND_ACCEPTED',
+      orderId: id,
+      orderNumber: order.order_number,
+      status: newStatus,
+      paymentStatus: 'PAID',
+      tableNumber: order.table_number,
+      orderType: order.order_type
+    });
 
     res.json({
       success: true,
-      data: { id, paymentStatus: 'PAID' }
+      data: { id, paymentStatus: 'PAID', status: newStatus }
     });
   } catch (err) {
     console.error('Error marking payment paid:', err);
@@ -544,6 +573,48 @@ router.post('/tables', requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Failed to add table.' }
+    });
+  }
+});
+
+// POST /api/admin/tables/:tableNumber/vacate - Clean and vacate table, completing any active dine-in orders
+router.post('/tables/:tableNumber/vacate', requireAdmin, async (req, res) => {
+  try {
+    const { tableNumber } = req.params;
+    const num = parseInt(tableNumber, 10);
+    const now = new Date().toISOString();
+
+    const activeOrders = await db.all(
+      `SELECT id, order_number FROM orders
+       WHERE table_number = ? AND order_type = 'DINE_IN'
+         AND status IN ('RECEIVED', 'CONFIRMED', 'PREPARING', 'READY')`,
+      [num]
+    );
+
+    for (const ord of activeOrders) {
+      await db.run('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', ['COMPLETED', now, ord.id]);
+      notifyOrderChange({
+        action: 'STATUS_UPDATED',
+        orderId: ord.id,
+        orderNumber: ord.order_number,
+        status: 'COMPLETED',
+        tableNumber: num,
+        isTableVacant: true
+      });
+    }
+
+    console.log(`🧹 Table #${num} cleaned & vacated (${activeOrders.length} active order(s) completed)`);
+
+    res.json({
+      success: true,
+      message: `Table ${num} cleaned and vacated.`,
+      vacatedOrders: activeOrders.map(o => o.order_number)
+    });
+  } catch (err) {
+    console.error('Error vacating table:', err);
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to vacate table.' }
     });
   }
 });

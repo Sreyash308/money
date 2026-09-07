@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const router = express.Router();
 const db = require('../db');
 const { getActiveMethods, directUPI, razorpay } = require('../lib/payments');
+const { notifyOrderChange } = require('./orders');
 
 // GET /api/payments/methods - List currently configured payment methods
 router.get('/methods', (req, res) => {
@@ -116,7 +117,7 @@ router.post('/verify', async (req, res) => {
     }
 
     const order = await db.get(
-      'SELECT id, order_number, total, payment_status, status, razorpay_order_id FROM orders WHERE order_number = ?',
+      'SELECT id, order_number, total, payment_status, status, razorpay_order_id, table_number, order_type FROM orders WHERE order_number = ?',
       [orderNumber.toUpperCase()]
     );
 
@@ -186,6 +187,16 @@ router.post('/verify', async (req, res) => {
     );
 
     console.log(`✅ Verified Razorpay payment ${razorpay_payment_id} for order ${order.order_number} (₹${order.total})`);
+
+    notifyOrderChange({
+      action: 'PAID_AND_ACCEPTED',
+      orderId: order.id,
+      orderNumber: order.order_number,
+      status: 'CONFIRMED',
+      paymentStatus: 'PAID',
+      tableNumber: order.table_number,
+      orderType: order.order_type
+    });
 
     res.json({
       success: true,

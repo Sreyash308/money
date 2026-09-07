@@ -903,6 +903,10 @@ function initCheckoutFlow() {
 
         grid.querySelectorAll('.table-card').forEach(card => {
           card.addEventListener('click', () => {
+            if (card.classList.contains('is-occupied')) {
+              showToast('This table is currently occupied. Please choose an open table.', 'info');
+              return;
+            }
             const num = parseInt(card.getAttribute('data-table-num'), 10);
             selectedTableNumber = num;
             grid.querySelectorAll('.table-card').forEach(c => c.classList.remove('is-selected'));

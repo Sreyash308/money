@@ -304,9 +304,9 @@
         <!-- Live Status Stepper -->
         <div class="status-stepper-box">
           <div class="live-step-row">
-            <div class="live-step-item is-done" id="step-received">
+            <div class="live-step-item" id="step-accepted">
               <div class="live-step-dot">1</div>
-              <span>Received</span>
+              <span>Accepted</span>
             </div>
             <div class="live-step-item" id="step-preparing">
               <div class="live-step-dot">2</div>
@@ -392,8 +392,37 @@
       }
       document.getElementById('order-number-display').textContent = orderNumber;
       fetchOrderDetails();
-      // Poll order status every 4 seconds
-      pollInterval = setInterval(fetchOrderDetails, 4000);
+
+      // Fast fail-safe polling every 2.5 seconds
+      pollInterval = setInterval(fetchOrderDetails, 2500);
+
+      // Instant Real-Time Push via Server-Sent Events (<100ms)
+      try {
+        const esOrder = new EventSource('/api/orders/events');
+        esOrder.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'ORDER_UPDATE') {
+              const ch = data.change || {};
+              if (!ch.orderNumber || ch.orderNumber === orderNumber) {
+                fetchOrderDetails();
+              }
+            }
+          } catch (_) {}
+        };
+      } catch (_) {}
+
+      // Instant Same-Browser Tab Synchronization (<10ms)
+      try {
+        if (window.BroadcastChannel) {
+          const bc = new BroadcastChannel('ochre_order_sync');
+          bc.onmessage = (e) => {
+            if (!e.data?.orderNumber || e.data?.orderNumber === orderNumber) {
+              fetchOrderDetails();
+            }
+          };
+        }
+      } catch (_) {}
     }
 
     function renderCustomerHistoryFallback() {
@@ -483,28 +512,50 @@
     });
 
     function updateOrderUI(order) {
+      const isPaid = order.paymentStatus === 'PAID';
+
       // 1. Heading & Icon
       const heading = document.getElementById('order-status-heading');
       const subhead = document.getElementById('order-status-subhead');
       const icon = document.getElementById('order-header-icon');
 
       if (order.status === 'RECEIVED') {
-        heading.textContent = 'Order Received';
-        subhead.textContent = 'Your order is queued at the barista counter.';
-        icon.textContent = '☕';
-      } else if (order.status === 'CONFIRMED' || order.status === 'PREPARING') {
-        heading.textContent = 'Currently Preparing';
-        subhead.textContent = 'Your specialty pour-overs & bites are being handcrafted right now.';
-        icon.textContent = '✨';
+        if (isPaid) {
+          heading.textContent = 'Order Accepted & Confirmed!';
+          subhead.textContent = order.orderType === 'DINE_IN'
+            ? `Your payment is confirmed. Heading to the kitchen for Table ${order.tableNumber}.`
+            : 'Your payment is confirmed. Heading to the kitchen for preparation.';
+          icon.textContent = '✅';
+        } else {
+          heading.textContent = 'Order Placed · Awaiting Payment';
+          subhead.textContent = order.paymentMethod === 'UPI' 
+            ? 'Please complete UPI transfer so our staff can confirm and prepare your order.'
+            : 'Please settle payment at the counter to confirm your order.';
+          icon.textContent = '⏳';
+        }
+      } else if (order.status === 'CONFIRMED') {
+        heading.textContent = 'Order Accepted & Confirmed!';
+        subhead.textContent = order.orderType === 'DINE_IN'
+          ? `Payment verified! Our kitchen is preparing to cook your order for Table ${order.tableNumber}.`
+          : 'Payment verified! Our kitchen is preparing to cook your order.';
+        icon.textContent = '✅';
+      } else if (order.status === 'PREPARING') {
+        heading.textContent = '🍳 Food is Preparing';
+        subhead.textContent = order.orderType === 'DINE_IN'
+          ? `Our chefs and baristas are freshly preparing your order for Table ${order.tableNumber}.`
+          : 'Our kitchen is freshly preparing your takeaway order right now.';
+        icon.textContent = '🍳';
       } else if (order.status === 'READY') {
-        heading.textContent = '🎉 Order Ready!';
-        subhead.textContent = order.orderType === 'DINE_IN' 
-          ? 'Your order is on its way to your table!' 
-          : 'Your takeaway bag is ready at the pickup counter!';
+        heading.textContent = '🎉 Food is Cooked & Ready!';
+        subhead.textContent = order.orderType === 'DINE_IN'
+          ? `Your freshly cooked food is on its way to Table ${order.tableNumber}! Enjoy your meal.`
+          : `Your freshly cooked order #${order.orderNumber} is ready at the pickup counter!`;
         icon.textContent = '🔔';
       } else if (order.status === 'COMPLETED') {
-        heading.textContent = 'Order Complete';
-        subhead.textContent = 'Thank you for savoring the craft with us. Have a wonderful day!';
+        heading.textContent = '🌿 Order Completed';
+        subhead.textContent = order.orderType === 'DINE_IN' && order.tableNumber
+          ? `Table #${order.tableNumber} is cleaned & vacated. Thank you for dining with Ochre Coffee Roasters!`
+          : 'Thank you for savoring the craft with us. Have a wonderful day!';
         icon.textContent = '🌿';
       } else if (order.status === 'CANCELLED') {
         heading.textContent = 'Order Cancelled';
@@ -512,22 +563,107 @@
         icon.textContent = '⚠️';
       }
 
-      // 2. Stepper
-      const stepReceived = document.getElementById('step-received');
+      // 2. Stepper milestones
+      const stepAccepted = document.getElementById('step-accepted') || document.getElementById('step-received');
       const stepPrep = document.getElementById('step-preparing');
       const stepReady = document.getElementById('step-ready');
       const stepComp = document.getElementById('step-completed');
 
-      const statuses = ['RECEIVED', 'PREPARING', 'READY', 'COMPLETED'];
-      const currentIndex = order.status === 'CONFIRMED' ? 1 : statuses.indexOf(order.status);
+      let activeIndex = 0;
+      if (order.status === 'CONFIRMED') activeIndex = 1;
+      else if (order.status === 'PREPARING') activeIndex = 2;
+      else if (order.status === 'READY') activeIndex = 3;
+      else if (order.status === 'COMPLETED') activeIndex = 4;
+      else if (isPaid) activeIndex = 1;
 
-      [stepReceived, stepPrep, stepReady, stepComp].forEach((el, idx) => {
-        if (!el) return;
-        el.classList.toggle('is-done', idx < currentIndex);
-        el.classList.toggle('is-active', idx === currentIndex);
-      });
+      if (stepAccepted) {
+        stepAccepted.classList.toggle('is-done', activeIndex > 1);
+        stepAccepted.classList.toggle('is-active', activeIndex <= 1);
+        const span = stepAccepted.querySelector('span');
+        if (span) span.textContent = (activeIndex >= 1 || isPaid) ? 'Accepted ✓' : 'Placed';
+      }
+      if (stepPrep) {
+        stepPrep.classList.toggle('is-done', activeIndex > 2);
+        stepPrep.classList.toggle('is-active', activeIndex === 2);
+      }
+      if (stepReady) {
+        stepReady.classList.toggle('is-done', activeIndex > 3);
+        stepReady.classList.toggle('is-active', activeIndex === 3);
+      }
+      if (stepComp) {
+        stepComp.classList.toggle('is-done', activeIndex >= 4);
+        stepComp.classList.toggle('is-active', activeIndex === 4);
+      }
 
-      // 3. Dining Mode & Payment Badge
+      // 3. Stage Banners
+      let stageBanner = document.getElementById('live-stage-banner');
+      if (!stageBanner) {
+        stageBanner = document.createElement('div');
+        stageBanner.id = 'live-stage-banner';
+        const cardBody = document.querySelector('.order-card-body');
+        const stepper = document.querySelector('.status-stepper-box');
+        if (cardBody && stepper) {
+          stepper.insertAdjacentElement('afterend', stageBanner);
+        }
+      }
+
+      if (order.status === 'CONFIRMED' || (order.status === 'RECEIVED' && isPaid)) {
+        stageBanner.innerHTML = `
+          <div style="background: rgba(39, 174, 96, 0.12); border: 1px solid rgba(39, 174, 96, 0.3); border-radius: var(--radius-md); padding: 0.95rem 1.2rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
+            <span style="font-size: 1.4rem;">✅</span>
+            <div>
+              <div style="font-weight: 800; font-size: 0.98rem; color: #27ae60;">Order Accepted &amp; Payment Confirmed</div>
+              <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 2px;">
+                Your order is confirmed and queued to start cooking in the kitchen.
+              </div>
+            </div>
+          </div>
+        `;
+        stageBanner.style.display = 'block';
+      } else if (order.status === 'PREPARING') {
+        stageBanner.innerHTML = `
+          <div style="background: rgba(47, 128, 237, 0.12); border: 1px solid rgba(47, 128, 237, 0.3); border-radius: var(--radius-md); padding: 0.95rem 1.2rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
+            <span style="font-size: 1.4rem; animation: pulseActive 1.5s infinite;">🍳</span>
+            <div>
+              <div style="font-weight: 800; font-size: 0.98rem; color: #2f80ed;">Food is Preparing in Kitchen</div>
+              <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 2px;">
+                Our culinary team &amp; baristas are cooking and brewing your items fresh right now.
+              </div>
+            </div>
+          </div>
+        `;
+        stageBanner.style.display = 'block';
+      } else if (order.status === 'READY') {
+        stageBanner.innerHTML = `
+          <div style="background: rgba(39, 174, 96, 0.15); border: 1.5px solid #27ae60; border-radius: var(--radius-md); padding: 1.1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.85rem; box-shadow: 0 4px 14px rgba(39, 174, 96, 0.2);">
+            <span style="font-size: 1.8rem;">🔔</span>
+            <div>
+              <div style="font-weight: 850; font-size: 1.05rem; color: #27ae60;">🎉 Food is Cooked &amp; Ready!</div>
+              <div style="font-size: 0.86rem; color: var(--color-text-primary); margin-top: 2px;">
+                ${order.orderType === 'DINE_IN' ? `Your freshly cooked dishes are being served to Table #${order.tableNumber}! Enjoy your meal.` : `Your freshly cooked order #${order.orderNumber} is ready for pickup at the counter!`}
+              </div>
+            </div>
+          </div>
+        `;
+        stageBanner.style.display = 'block';
+      } else if (order.status === 'COMPLETED') {
+        stageBanner.innerHTML = `
+          <div style="background: rgba(130, 123, 112, 0.12); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 0.95rem 1.2rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
+            <span style="font-size: 1.4rem;">🌿</span>
+            <div>
+              <div style="font-weight: 800; font-size: 0.98rem; color: var(--color-text-primary);">Order Completed</div>
+              <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 2px;">
+                ${order.orderType === 'DINE_IN' && order.tableNumber ? `Table #${order.tableNumber} is cleaned &amp; vacated for next guests. Thank you for dining with Ochre Coffee!` : 'Thank you for savoring the craft with us. Have a wonderful day!'}
+              </div>
+            </div>
+          </div>
+        `;
+        stageBanner.style.display = 'block';
+      } else {
+        stageBanner.style.display = 'none';
+      }
+
+      // 4. Dining Mode & Payment Badge
       const diningEl = document.getElementById('order-dining-type');
       if (diningEl) {
         diningEl.textContent = order.orderType === 'DINE_IN' 
@@ -546,7 +682,7 @@
         }
       }
 
-      // 4. Instructions Box
+      // 5. Instructions Box
       const instEl = document.getElementById('order-instructions');
       if (instEl) {
         if (order.paymentStatus === 'PAID') {
@@ -565,9 +701,9 @@
         }
       }
 
-      // 5. UPI Payment & UTR Submission Section (Only if UPI & Pending)
+      // 6. UPI Payment & UTR Submission Section (Only if UPI & Pending)
       let upiBox = document.getElementById('live-upi-container');
-      if (order.paymentMethod === 'UPI' && order.paymentStatus !== 'PAID') {
+      if (order.paymentMethod === 'UPI' && !isPaid) {
         if (!upiBox) {
           upiBox = document.createElement('div');
           upiBox.id = 'live-upi-container';

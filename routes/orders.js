@@ -10,6 +10,84 @@ const router = express.Router();
 const db = require('../db');
 const { directUPI, counter, razorpay } = require('../lib/payments');
 
+let currentOrderVersion = Date.now();
+const sseOrderClients = new Set();
+
+function notifyOrderChange(changeDetails = {}) {
+  currentOrderVersion = Date.now();
+  const payload = JSON.stringify({
+    type: 'ORDER_UPDATE',
+    version: currentOrderVersion,
+    timestamp: new Date().toISOString(),
+    change: changeDetails
+  });
+
+  for (const client of sseOrderClients) {
+    try {
+      client.write(`data: ${payload}\n\n`);
+    } catch (err) {
+      sseOrderClients.delete(client);
+    }
+  }
+}
+
+function getStatusLabel(status, paymentStatus) {
+  switch (status) {
+    case 'RECEIVED':
+      return paymentStatus === 'PAID' ? 'Order Accepted & Confirmed' : 'Order Placed (Payment Pending)';
+    case 'CONFIRMED':
+      return 'Order Accepted (Payment Confirmed)';
+    case 'PREPARING':
+      return 'Food is Preparing';
+    case 'READY':
+      return 'Food Cooked & Ready';
+    case 'COMPLETED':
+      return 'Order Completed (Table Vacated)';
+    case 'CANCELLED':
+      return 'Order Cancelled';
+    default:
+      return status;
+  }
+}
+
+function getStepIndex(status) {
+  switch (status) {
+    case 'RECEIVED': return 0;
+    case 'CONFIRMED': return 1;
+    case 'PREPARING': return 2;
+    case 'READY': return 3;
+    case 'COMPLETED': return 4;
+    default: return 0;
+  }
+}
+
+// GET /api/orders/events - Live Server-Sent Events stream for order status changes & table vacancy
+router.get('/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  if (res.flushHeaders) res.flushHeaders();
+
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', version: currentOrderVersion })}\n\n`);
+  sseOrderClients.add(res);
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(':keepalive\n\n');
+    } catch (e) {
+      clearInterval(heartbeat);
+      sseOrderClients.delete(res);
+    }
+  }, 15000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseOrderClients.delete(res);
+  });
+});
+
 // POST /api/orders/validate - Pre-checkout validation of cart items
 router.post('/validate', async (req, res) => {
   try {
@@ -409,6 +487,17 @@ router.post('/', async (req, res) => {
       });
     }
 
+    notifyOrderChange({
+      action: 'CREATED',
+      orderId,
+      orderNumber,
+      orderType,
+      tableNumber: validTableNumber,
+      status: 'RECEIVED',
+      paymentStatus: 'PAYMENT_PENDING',
+      total: finalTotal
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -421,6 +510,8 @@ router.post('/', async (req, res) => {
         paymentMethod: normalizedMethod,
         paymentStatus: 'PAYMENT_PENDING',
         status: 'RECEIVED',
+        statusLabel: getStatusLabel('RECEIVED', 'PAYMENT_PENDING'),
+        stepIndex: getStepIndex('RECEIVED'),
         total: finalTotal,
         items: validatedItems.map(i => ({
           name: i.nameSnapshot,
@@ -561,6 +652,9 @@ router.get('/:orderNumber', async (req, res) => {
         orderType: order.order_type,
         tableNumber: order.table_number,
         status: order.status,
+        statusLabel: getStatusLabel(order.status, order.payment_status),
+        stepIndex: getStepIndex(order.status),
+        isTableVacant: order.status === 'COMPLETED' || order.status === 'CANCELLED',
         paymentStatus: order.payment_status,
         paymentMethod: order.payment_method,
         subtotal: order.subtotal,
@@ -583,3 +677,6 @@ router.get('/:orderNumber', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.notifyOrderChange = notifyOrderChange;
+module.exports.getStatusLabel = getStatusLabel;
+module.exports.getStepIndex = getStepIndex;

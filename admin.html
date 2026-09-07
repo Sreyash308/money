@@ -673,29 +673,55 @@
     });
 
     function initRealtimeAdminSync() {
-      // 1. Cross-tab Broadcast Channel
+      // 1. Cross-tab Broadcast Channels
       try {
         if (window.BroadcastChannel) {
-          const bc = new BroadcastChannel('ochre_menu_sync');
-          bc.onmessage = (e) => {
+          const bcMenu = new BroadcastChannel('ochre_menu_sync');
+          bcMenu.onmessage = (e) => {
             if (e.data?.type === 'MENU_UPDATE') {
               if (document.getElementById('panel-menu')?.style.display !== 'none') {
                 fetchAdminMenu();
               }
             }
           };
+
+          const bcOrder = new BroadcastChannel('ochre_order_sync');
+          bcOrder.onmessage = () => {
+            fetchOrders(true);
+            fetchStats();
+            if (document.getElementById('panel-tables')?.style.display !== 'none') {
+              fetchAdminTables();
+            }
+          };
         }
       } catch (e) {}
 
-      // 2. Server-Sent Events stream for instant cross-device sync
+      // 2. Server-Sent Events stream for instant menu sync
       try {
-        const es = new EventSource('/api/menu/events');
-        es.onmessage = (e) => {
+        const esMenu = new EventSource('/api/menu/events');
+        esMenu.onmessage = (e) => {
           try {
             const data = JSON.parse(e.data);
             if (data.type === 'MENU_UPDATE') {
               if (document.getElementById('panel-menu')?.style.display !== 'none') {
                 fetchAdminMenu();
+              }
+            }
+          } catch (err) {}
+        };
+      } catch (e) {}
+
+      // 3. Server-Sent Events stream for instant order & table vacancy sync
+      try {
+        const esOrder = new EventSource('/api/orders/events');
+        esOrder.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'ORDER_UPDATE') {
+              fetchOrders(true);
+              fetchStats();
+              if (document.getElementById('panel-tables')?.style.display !== 'none') {
+                fetchAdminTables();
               }
             }
           } catch (err) {}
@@ -997,26 +1023,32 @@
               <div class="action-btns-row">
                 ${!isPaid ? `
                   <button class="btn btn-sm" style="background:#27ae60; color:#fff;" onclick="markOrderPaid('${ord.id}')">
-                    ${isUpi ? '✅ Verify & Mark Paid' : '💵 Settle & Mark Paid'}
+                    ${isUpi ? '✅ Verify & Accept Order' : '💵 Settle & Accept Order'}
                   </button>
                 ` : ''}
 
-                ${ord.status === 'RECEIVED' ? `
+                ${isPaid && (ord.status === 'RECEIVED' || ord.status === 'CONFIRMED') ? `
                   <button class="btn btn-primary btn-sm" onclick="updateOrderStatus('${ord.id}', 'PREPARING')">
-                    ☕ Accept &amp; Prepare
+                    🍳 Start Cooking · Food Preparing
                   </button>
                 ` : ''}
 
                 ${ord.status === 'PREPARING' ? `
                   <button class="btn btn-sm" style="background: #27ae60; color: #fff;" onclick="updateOrderStatus('${ord.id}', 'READY')">
-                    🔔 Mark Ready
+                    🔔 Food Cooked &amp; Ready
                   </button>
                 ` : ''}
 
                 ${ord.status === 'READY' ? `
-                  <button class="btn btn-secondary btn-sm" style="border-color: #27ae60; color: #27ae60;" onclick="updateOrderStatus('${ord.id}', 'COMPLETED')">
-                    ✓ Complete
+                  <button class="btn btn-sm" style="background: #2f80ed; color: #fff;" onclick="updateOrderStatus('${ord.id}', 'COMPLETED')">
+                    ${ord.order_type === 'DINE_IN' ? '🧹 Table Cleaned · Vacate &amp; Complete' : '✓ Handed Over · Complete Order'}
                   </button>
+                ` : ''}
+
+                ${ord.status === 'COMPLETED' ? `
+                  <span style="font-size: 0.82rem; color: #27ae60; font-weight: 750; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    ✓ Order Completed ${ord.order_type === 'DINE_IN' && ord.table_number ? `· Table #${ord.table_number} Vacant` : ''}
+                  </span>
                 ` : ''}
 
                 ${ord.status !== 'COMPLETED' && ord.status !== 'CANCELLED' ? `
@@ -1034,11 +1066,24 @@
     function getStatusColor(status) {
       switch(status) {
         case 'RECEIVED': return '#f2994a';
+        case 'CONFIRMED': return '#27ae60';
         case 'PREPARING': return '#2f80ed';
         case 'READY': return '#27ae60';
         case 'COMPLETED': return '#827b70';
         default: return '#eb5757';
       }
+    }
+
+    function broadcastOrderSync(data = {}) {
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const channel = new BroadcastChannel('ochre_order_sync');
+          channel.postMessage({ timestamp: Date.now(), ...data });
+        } catch (_) {}
+      }
+      try {
+        localStorage.setItem('ochre_order_sync', JSON.stringify({ timestamp: Date.now(), ...data }));
+      } catch (_) {}
     }
 
     async function updateOrderStatus(orderId, status) {
@@ -1051,8 +1096,12 @@
           body: JSON.stringify({ status })
         });
         if (res.ok) {
+          broadcastOrderSync({ orderId, status });
           fetchOrders();
           fetchStats();
+          if (document.getElementById('panel-tables')?.style.display !== 'none') {
+            fetchAdminTables();
+          }
         }
       } catch (err) {
         alert('Failed to update status.');
@@ -1065,8 +1114,12 @@
           method: 'POST'
         });
         if (res.ok) {
+          broadcastOrderSync({ orderId, status: 'CONFIRMED', paymentStatus: 'PAID' });
           fetchOrders();
           fetchStats();
+          if (document.getElementById('panel-tables')?.style.display !== 'none') {
+            fetchAdminTables();
+          }
         }
       } catch (err) {
         alert('Failed to mark paid.');
@@ -1260,17 +1313,42 @@
             Capacity: <strong>${tbl.capacity} Seats</strong>
           </div>
           ${tbl.activeOrder ? `
-            <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(235,87,87,0.1); border-radius: 6px; font-size: 0.82rem; color: #fff;">
+            <div style="margin-top: 0.75rem; padding: 0.6rem 0.75rem; background: rgba(235,87,87,0.1); border-radius: 6px; font-size: 0.82rem; color: #fff;">
               Active Order: <strong>${tbl.activeOrder.order_number}</strong> (${tbl.activeOrder.customer_name})<br>
               Total: <strong>₹${tbl.activeOrder.total}</strong>
+              <div style="margin-top: 0.6rem;">
+                <button class="btn btn-sm" style="width: 100%; background: #2f80ed; color: #fff; font-size: 0.78rem; padding: 0.4rem 0.6rem; border-radius: 4px;" onclick="vacateTable('${tbl.table_number}')">
+                  🧹 Table Cleaned · Vacate Table
+                </button>
+              </div>
             </div>
           ` : `
-            <div style="margin-top: 0.75rem; font-size: 0.82rem; color: #27ae60;">
-              Ready for guests
+            <div style="margin-top: 0.75rem; font-size: 0.84rem; color: #27ae60; font-weight: 750;">
+              🟢 Ready for next guest (Vacant)
             </div>
           `}
         </div>
       `).join('');
+    }
+
+    async function vacateTable(tableNumber) {
+      if (!confirm(`Mark Table ${tableNumber} as cleaned and vacant? Any active order will be completed.`)) return;
+      try {
+        const res = await adminFetch(`/api/admin/tables/${tableNumber}/vacate`, {
+          method: 'POST'
+        });
+        if (res.ok) {
+          broadcastOrderSync({ action: 'TABLE_VACATED', tableNumber });
+          fetchAdminTables();
+          fetchOrders();
+          fetchStats();
+        } else {
+          const j = await res.json();
+          alert(j.error?.message || 'Failed to vacate table.');
+        }
+      } catch (e) {
+        alert('Network error.');
+      }
     }
 
     document.getElementById('btn-add-table').addEventListener('click', async () => {
