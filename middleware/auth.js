@@ -1,14 +1,14 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+const FALLBACK_JWT_SECRET = 'ochre-coffee-roasters-persistent-jwt-secret-2026';
 
 function getJwtSecret() {
   if (process.env.ADMIN_JWT_SECRET && process.env.ADMIN_JWT_SECRET.trim().length > 0) {
     return process.env.ADMIN_JWT_SECRET.trim();
   }
-  if (!global.__ochreAdminJwtSecret) {
-    global.__ochreAdminJwtSecret = crypto.randomBytes(32).toString('hex');
-  }
-  return global.__ochreAdminJwtSecret;
+  return FALLBACK_JWT_SECRET;
 }
 
 function requireAdmin(req, res, next) {

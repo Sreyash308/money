@@ -14,7 +14,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 
+  <script>
+    // Immediate auth state check before CSS/DOM render to eliminate login flash
+    try {
+      if (localStorage.getItem('ochre_admin_token')) {
+        document.documentElement.classList.add('is-authenticated');
+      }
+    } catch (e) {}
+  </script>
+
   <style>
+    /* Prevent login overlay flicker when authenticated */
+    html.is-authenticated #login-overlay {
+      display: none !important;
+    }
+
     :root {
       --admin-bg: #141210;
       --admin-card: #1f1c18;
@@ -372,18 +386,18 @@
           <path d="M16 10c3 1 4.5 4 4 7s-3 4-4 4"/>
         </svg>
         <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.3rem;">OCHRE Coffee Roasters</h2>
-        <p style="font-size: 0.84rem; color: var(--admin-text-muted);">Restaurant Management Portal</p>
+        <p style="font-size: 0.84rem; color: var(--admin-text-muted);">Admin &amp; Cashier Portal</p>
       </div>
 
       <form id="login-form">
         <div class="checkout-form-group">
           <label class="checkout-label" style="color: var(--admin-text-main);" for="login-email">Email Address</label>
-          <input type="email" id="login-email" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" placeholder="admin@ochrecoffee.com" autocomplete="username" required>
+          <input type="email" id="login-email" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" placeholder="owner@ochrecoffee.com or cashier@ochrecoffee.com" autocomplete="username" required>
         </div>
 
         <div class="checkout-form-group">
           <label class="checkout-label" style="color: var(--admin-text-main);" for="login-password">Password</label>
-          <input type="password" id="login-password" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" placeholder="Enter admin password" autocomplete="current-password" required>
+          <input type="password" id="login-password" class="checkout-input" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" placeholder="Enter password" autocomplete="current-password" required>
         </div>
 
         <div id="login-error-msg" style="display: none; padding: 0.75rem; background: #491212; color: #ff9e9e; border-radius: 6px; font-size: 0.82rem; margin-bottom: 1.2rem;"></div>
@@ -404,7 +418,7 @@
         <span style="font-size: 1.25rem;">☕</span>
         <span>OCHRE ROASTERS</span>
       </a>
-      <span class="admin-badge">Admin</span>
+      <span class="admin-badge" id="portal-role-badge">Admin</span>
       <span style="font-size: 0.78rem; color: #27ae60;" id="live-indicator">● Live</span>
     </div>
 
@@ -426,7 +440,7 @@
     </nav>
 
     <div style="display: flex; align-items: center; gap: 1rem;">
-      <span style="font-size: 0.84rem; color: var(--admin-text-muted);" id="user-display">owner@ochrecoffee.com</span>
+      <span style="font-size: 0.84rem; color: var(--admin-text-muted);" id="user-display">Loading session...</span>
       <button class="btn btn-secondary btn-sm" id="logout-btn" style="border-color: var(--admin-border); color: var(--admin-text-main);">Sign Out</button>
     </div>
   </header>
@@ -592,34 +606,82 @@
 
   <script>
     let authToken = localStorage.getItem('ochre_admin_token') || null;
+    let currentUser = null;
     let currentFilterStatus = 'ALL';
     let prevPendingCount = 0;
+    let isPollingStarted = false;
+
+    // Unified authenticated fetch with credentials & Bearer JWT token
+    async function adminFetch(url, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      const fetchOpts = {
+        ...options,
+        credentials: 'include',
+        headers
+      };
+
+      const res = await fetch(url, fetchOpts);
+      if (res.status === 401) {
+        handleSessionExpired();
+      }
+      return res;
+    }
+
+    function handleSessionExpired() {
+      localStorage.removeItem('ochre_admin_token');
+      authToken = null;
+      currentUser = null;
+      document.documentElement.classList.remove('is-authenticated');
+      const loginOverlay = document.getElementById('login-overlay');
+      if (loginOverlay) loginOverlay.style.display = 'flex';
+      const userDisplay = document.getElementById('user-display');
+      if (userDisplay) userDisplay.textContent = 'Please log in';
+    }
+
+    function updateUserDisplay(user) {
+      if (!user) return;
+      const userDisplay = document.getElementById('user-display');
+      if (userDisplay) {
+        const roleStr = user.role ? ` (${user.role})` : '';
+        userDisplay.textContent = `${user.email}${roleStr}`;
+      }
+      const roleBadge = document.getElementById('portal-role-badge');
+      if (roleBadge) {
+        roleBadge.textContent = user.role === 'CASHIER' ? 'Cashier Portal' : 'Admin';
+      }
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       initAdminAuth();
       initTabNavigation();
     });
 
-    function initAdminAuth() {
+    async function initAdminAuth() {
       const loginOverlay = document.getElementById('login-overlay');
       const loginForm = document.getElementById('login-form');
       const logoutBtn = document.getElementById('logout-btn');
 
-      if (authToken) {
-        verifySession();
-      } else {
-        loginOverlay.style.display = 'flex';
-      }
+      // Verify active session asynchronously; does NOT flash modal if token present
+      await verifySession();
 
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         const errorEl = document.getElementById('login-error-msg');
+        const submitBtn = document.getElementById('login-submit-btn');
+
+        errorEl.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing in...';
 
         try {
           const res = await fetch('/api/admin/login', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
           });
@@ -627,57 +689,97 @@
 
           if (json.success && json.data) {
             authToken = json.data.token;
+            currentUser = json.data.user;
             localStorage.setItem('ochre_admin_token', authToken);
+            document.documentElement.classList.add('is-authenticated');
             loginOverlay.style.display = 'none';
+            updateUserDisplay(currentUser);
             startAdminPolling();
           } else {
-            errorEl.textContent = json.error?.message || 'Login failed.';
+            errorEl.textContent = json.error?.message || 'Login failed. Please check credentials.';
             errorEl.style.display = 'block';
           }
         } catch (err) {
-          errorEl.textContent = 'Server connection error.';
+          errorEl.textContent = 'Server connection error. Please try again.';
           errorEl.style.display = 'block';
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign In to Portal';
         }
       });
 
       logoutBtn.addEventListener('click', async () => {
         localStorage.removeItem('ochre_admin_token');
         authToken = null;
-        await fetch('/api/admin/logout', { method: 'POST' });
+        currentUser = null;
+        try {
+          await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+        } catch (e) {}
+        document.documentElement.classList.remove('is-authenticated');
         window.location.reload();
       });
     }
 
     async function verifySession() {
+      const loginOverlay = document.getElementById('login-overlay');
       try {
+        const headers = {};
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
         const res = await fetch('/api/admin/me', {
-          headers: { 'Authorization': `Bearer ${authToken}` }
+          credentials: 'include',
+          headers
         });
+
         if (res.ok) {
-          document.getElementById('login-overlay').style.display = 'none';
-          startAdminPolling();
-        } else {
-          localStorage.removeItem('ochre_admin_token');
-          authToken = null;
-          document.getElementById('login-overlay').style.display = 'flex';
+          const json = await res.json();
+          if (json.success && json.data) {
+            currentUser = json.data.user;
+            if (json.data.token && !authToken) {
+              authToken = json.data.token;
+              localStorage.setItem('ochre_admin_token', authToken);
+            }
+            document.documentElement.classList.add('is-authenticated');
+            if (loginOverlay) loginOverlay.style.display = 'none';
+            updateUserDisplay(currentUser);
+            startAdminPolling();
+            return;
+          }
+        } else if (res.status === 401 || res.status === 403) {
+          handleSessionExpired();
+          return;
         }
       } catch (e) {
-        document.getElementById('login-overlay').style.display = 'flex';
+        console.warn('Session check network note:', e);
+        // On network error or cold start, preserve auth if token exists in localStorage
+        if (authToken) {
+          document.documentElement.classList.add('is-authenticated');
+          if (loginOverlay) loginOverlay.style.display = 'none';
+          startAdminPolling();
+          return;
+        }
+      }
+
+      if (!authToken) {
+        handleSessionExpired();
       }
     }
 
     function startAdminPolling() {
+      if (isPollingStarted) return;
+      isPollingStarted = true;
       fetchStats();
       fetchOrders();
       setInterval(() => {
-        if (authToken && !document.hidden) {
+        if ((authToken || currentUser) && !document.hidden) {
           fetchStats();
           fetchOrders(true);
         }
       }, 5000);
 
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && authToken) {
+        if (!document.hidden && (authToken || currentUser)) {
           fetchStats();
           fetchOrders(true);
         }
@@ -720,11 +822,9 @@
 
     // Fetch Stats
     async function fetchStats() {
-      if (!authToken) return;
+      if (!authToken && !currentUser) return;
       try {
-        const res = await fetch('/api/admin/stats', {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
+        const res = await adminFetch('/api/admin/stats');
         const json = await res.json();
         if (json.success && json.data) {
           const s = json.data;
@@ -751,15 +851,13 @@
 
     // Fetch Orders
     async function fetchOrders(silent = false) {
-      if (!authToken) return;
+      if (!authToken && !currentUser) return;
       try {
         const searchVal = document.getElementById('order-search-input')?.value || '';
         let url = `/api/admin/orders?status=${currentFilterStatus}`;
         if (searchVal.trim()) url += `&search=${encodeURIComponent(searchVal.trim())}`;
 
-        const res = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
+        const res = await adminFetch(url);
         const json = await res.json();
 
         if (json.success && json.data) {
@@ -901,11 +999,10 @@
 
     async function updateOrderStatus(orderId, status) {
       try {
-        const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+        const res = await adminFetch(`/api/admin/orders/${orderId}/status`, {
           method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ status })
         });
@@ -920,9 +1017,8 @@
 
     async function markOrderPaid(orderId) {
       try {
-        const res = await fetch(`/api/admin/orders/${orderId}/mark-paid`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${authToken}` }
+        const res = await adminFetch(`/api/admin/orders/${orderId}/mark-paid`, {
+          method: 'POST'
         });
         if (res.ok) {
           fetchOrders();
@@ -936,9 +1032,7 @@
     // Menu Management Actions
     async function fetchAdminMenu() {
       try {
-        const res = await fetch('/api/admin/products', {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
+        const res = await adminFetch('/api/admin/products');
         const json = await res.json();
         if (json.success && json.data) {
           renderMenuTable(json.data.products);
@@ -987,9 +1081,8 @@
 
     async function toggleProductAvailability(id) {
       try {
-        await fetch(`/api/admin/products/${id}/availability`, {
-          method: 'PATCH',
-          headers: { 'Authorization': `Bearer ${authToken}` }
+        await adminFetch(`/api/admin/products/${id}/availability`, {
+          method: 'PATCH'
         });
         fetchAdminMenu();
       } catch (err) {
@@ -1000,9 +1093,8 @@
     async function deleteProduct(id) {
       if (!confirm('Remove this product from the menu?')) return;
       try {
-        await fetch(`/api/admin/products/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${authToken}` }
+        await adminFetch(`/api/admin/products/${id}`, {
+          method: 'DELETE'
         });
         fetchAdminMenu();
       } catch (err) {
@@ -1049,11 +1141,10 @@
       const method = id ? 'PUT' : 'POST';
 
       try {
-        const res = await fetch(url, {
+        const res = await adminFetch(url, {
           method,
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(payload)
         });
@@ -1071,9 +1162,7 @@
     // Tables Management
     async function fetchAdminTables() {
       try {
-        const res = await fetch('/api/admin/tables', {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
+        const res = await adminFetch('/api/admin/tables');
         const json = await res.json();
         if (json.success && json.data) {
           renderTables(json.data);
@@ -1119,11 +1208,10 @@
       const cap = prompt('Enter seating capacity:', '4');
 
       try {
-        const res = await fetch('/api/admin/tables', {
+        const res = await adminFetch('/api/admin/tables', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ tableNumber: num, label, capacity: cap })
         });

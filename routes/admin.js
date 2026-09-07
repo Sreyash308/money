@@ -42,14 +42,15 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, role: user.role },
       getJwtSecret(),
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.cookie('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000
     });
 
     res.json({
@@ -75,15 +76,22 @@ router.post('/login', async (req, res) => {
 
 // GET /api/admin/me - Verify active admin session
 router.get('/me', requireAdmin, async (req, res) => {
+  const token = req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
+    ? req.headers.authorization.split(' ')[1]
+    : (req.cookies && req.cookies.admin_token ? req.cookies.admin_token : null);
+
   res.json({
     success: true,
-    data: { user: req.adminUser }
+    data: {
+      user: req.adminUser,
+      token
+    }
   });
 });
 
 // POST /api/admin/logout - Logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('admin_token');
+  res.clearCookie('admin_token', { path: '/' });
   res.json({ success: true, message: 'Logged out successfully.' });
 });
 

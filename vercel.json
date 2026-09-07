@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/cashier", "destination": "/admin.html" },
     { "source": "/order/:orderNumber", "destination": "/order.html" },
     { "source": "/order", "destination": "/order.html" }
   ]

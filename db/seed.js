@@ -330,6 +330,23 @@ async function seed() {
     console.log(`  + Admin User verified: ${adminEmail}`);
   }
 
+  // Cashier User
+  const cashierEmail = process.env.CASHIER_EMAIL || 'cashier@ochrecoffee.com';
+  const cashierPassword = process.env.CASHIER_PASSWORD || 'ochreCashier2026!';
+  const existingCashier = await db.get('SELECT id FROM admin_users WHERE email = ?', [cashierEmail]);
+
+  if (!existingCashier) {
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync(cashierPassword, salt);
+    const cashierId = 'usr_cashier_' + crypto.randomUUID().slice(0, 8);
+    await db.run(
+      `INSERT INTO admin_users (id, username, email, password_hash, role, created_at)
+       VALUES (?, ?, ?, ?, 'CASHIER', ?)`,
+      [cashierId, 'ochre_cashier', cashierEmail, hash, now]
+    );
+    console.log(`  + Cashier User verified: ${cashierEmail}`);
+  }
+
   // 5. Settings
   const initialSettings = [
     { key: 'restaurant_status', value: 'OPEN' },

@@ -54,6 +54,10 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+app.get('/cashier', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 app.get('/order/:orderNumber', (req, res) => {
   res.sendFile(path.join(__dirname, 'order.html'));
 });
