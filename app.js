@@ -1300,6 +1300,12 @@ function openOrdersModal() {
           </div>
         `).join('')}
       </div>
+      <div style="margin-top: 1.25rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 0.85rem;">
+        <button type="button" style="font-size: 0.78rem; color: #eb5757; background: transparent; border: none; cursor: pointer; text-decoration: underline; padding: 0;" onclick="clearLocalCustomerOrders()">
+          Clear Device Order History
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeOrdersModal()">Close</button>
+      </div>
     `;
   }
 
@@ -1310,6 +1316,13 @@ function openOrdersModal() {
     closeBtn.onclick = closeOrdersModal;
   }
 }
+
+window.clearLocalCustomerOrders = function() {
+  if (confirm('Clear previous order tracking history on this device?')) {
+    localStorage.removeItem('ochre_customer_orders');
+    openOrdersModal();
+  }
+};
 
 function closeOrdersModal() {
   const modal = document.getElementById('orders-modal-overlay');

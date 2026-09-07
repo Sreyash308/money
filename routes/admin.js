@@ -111,8 +111,12 @@ router.get('/orders', requireAdmin, async (req, res) => {
     const params = [];
 
     if (status && status !== 'ALL') {
-      query += ' AND o.status = ?';
-      params.push(status);
+      if (status === 'RECEIVED_OR_CONFIRMED') {
+        query += " AND o.status IN ('RECEIVED', 'CONFIRMED')";
+      } else {
+        query += ' AND o.status = ?';
+        params.push(status);
+      }
     }
 
     if (paymentStatus && paymentStatus !== 'ALL') {
@@ -131,7 +135,7 @@ router.get('/orders', requireAdmin, async (req, res) => {
       params.push(term, term, term);
     }
 
-    query += ' ORDER BY o.created_at DESC LIMIT 100';
+    query += ' ORDER BY o.created_at DESC, o.id DESC LIMIT 100';
 
     const orders = await db.all(query, params);
 
@@ -633,6 +637,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
     let totalOrders = ordersToday.length;
     let todayRevenue = 0;
     let pendingCount = 0;
+    let confirmedCount = 0;
     let preparingCount = 0;
     let readyCount = 0;
     let completedCount = 0;
@@ -646,6 +651,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
         todayRevenue += ord.total;
       }
       if (ord.status === 'RECEIVED') pendingCount++;
+      if (ord.status === 'CONFIRMED') confirmedCount++;
       if (ord.status === 'PREPARING') preparingCount++;
       if (ord.status === 'READY') readyCount++;
       if (ord.status === 'COMPLETED') completedCount++;
@@ -663,6 +669,8 @@ router.get('/stats', requireAdmin, async (req, res) => {
         todayOrders: totalOrders,
         todayRevenue,
         pending: pendingCount,
+        confirmed: confirmedCount,
+        toPrepare: pendingCount + confirmedCount,
         preparing: preparingCount,
         ready: readyCount,
         completed: completedCount,

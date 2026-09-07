@@ -472,11 +472,19 @@
                 </div>
               `).join('')}
             </div>
-            <div style="text-align: center;">
+            <div style="text-align: center; display: flex; justify-content: center; gap: 1.2rem; align-items: center; margin-top: 1.5rem;">
               <a href="/#menu" class="btn btn-secondary btn-sm">&larr; Back to Menu</a>
+              <button type="button" style="font-size: 0.78rem; color: #eb5757; background: transparent; border: none; cursor: pointer; text-decoration: underline;" onclick="clearLocalHistory()">Clear Device History</button>
             </div>
           </div>
         `;
+      }
+    }
+
+    function clearLocalHistory() {
+      if (confirm('Clear previous order tracking history on this device?')) {
+        localStorage.removeItem('ochre_customer_orders');
+        renderCustomerHistoryFallback();
       }
     }
 
