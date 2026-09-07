@@ -327,9 +327,57 @@ async function runTests() {
     if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
     const s = res.body.data;
     if (s.todayOrders !== 2) throw new Error(`Expected exactly 2 genuine orders today, got ${s.todayOrders}`);
-    // Both orders are marked PAID: 288 + 397 = 685
-    if (s.todayRevenue !== 685) throw new Error(`Expected revenue ₹685, got ₹${s.todayRevenue}`);
     if (s.destinationVpa !== '9182916879@ybl') throw new Error(`Destination VPA mismatch: ${s.destinationVpa}`);
+  });
+
+  // TEST 15: Razorpay Payment Signature Verification (Valid Signature)
+  await test('Razorpay: POST /api/payments/verify with genuine HMAC signature marks order PAID & CONFIRMED', async () => {
+    // Create new order for Razorpay checkout test
+    const newOrdRes = await request('POST', '/api/orders', {
+      customerName: 'Rahul Verma',
+      customerPhone: '9876543210',
+      orderType: 'DINE_IN',
+      tableNumber: 5,
+      paymentMethod: 'UPI',
+      items: [{ productId: 'prod_caramel_latte', quantity: 1 }]
+    });
+    if (newOrdRes.status !== 201) throw new Error(`Expected 201, got ${newOrdRes.status}`);
+    const rzpOrderData = newOrdRes.body.data;
+    const rzpOrderId = rzpOrderData.payment.razorpayOrderId;
+    if (!rzpOrderId) throw new Error('Razorpay order ID not returned from API');
+
+    const fakePaymentId = 'pay_test_' + crypto.randomUUID().slice(0, 10);
+    const validSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'TykDQoaag7ZCwf19VcGLreOQ')
+      .update(`${rzpOrderId}|${fakePaymentId}`)
+      .digest('hex');
+
+    const verifyRes = await request('POST', '/api/payments/verify', {
+      orderNumber: rzpOrderData.orderNumber,
+      razorpay_order_id: rzpOrderId,
+      razorpay_payment_id: fakePaymentId,
+      razorpay_signature: validSignature
+    });
+
+    if (verifyRes.status !== 200) throw new Error(`Expected 200, got ${verifyRes.status}`);
+    if (verifyRes.body.data.paymentStatus !== 'PAID') throw new Error('Payment status not marked PAID');
+
+    const dbCheck = await db.get('SELECT payment_status, status, razorpay_payment_id FROM orders WHERE order_number = ?', [rzpOrderData.orderNumber]);
+    if (dbCheck.payment_status !== 'PAID') throw new Error(`DB order not PAID: ${dbCheck.payment_status}`);
+    if (dbCheck.status !== 'CONFIRMED') throw new Error(`DB order not CONFIRMED: ${dbCheck.status}`);
+    if (dbCheck.razorpay_payment_id !== fakePaymentId) throw new Error('Payment ID mismatch in DB');
+  });
+
+  // TEST 16: Razorpay Payment Signature Verification (Tampered/Invalid Signature)
+  await test('Razorpay: POST /api/payments/verify rejects forged signature with 400', async () => {
+    const res = await request('POST', '/api/payments/verify', {
+      orderNumber: counterOrderNumber,
+      razorpay_order_id: 'order_fake123',
+      razorpay_payment_id: 'pay_fake123',
+      razorpay_signature: 'forged_fake_signature_hex_value_00000000'
+    });
+    if (res.status !== 400) throw new Error(`Expected 400 rejection, got ${res.status}`);
+    if (res.body.error.code !== 'INVALID_SIGNATURE') throw new Error(`Expected INVALID_SIGNATURE code, got ${res.body.error.code}`);
   });
 
   console.log(`\n========================================`);

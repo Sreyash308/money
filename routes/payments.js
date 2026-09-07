@@ -94,6 +94,87 @@ router.post('/submit-utr', async (req, res) => {
   }
 });
 
+// POST /api/payments/verify - Verify Razorpay Standard Checkout HMAC Signature
+router.post('/verify', async (req, res) => {
+  try {
+    const { orderNumber, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!orderNumber || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_DATA', message: 'Order number, payment ID, order ID, and signature are required.' }
+      });
+    }
+
+    const order = await db.get(
+      'SELECT id, order_number, total, payment_status, status FROM orders WHERE order_number = ?',
+      [orderNumber.toUpperCase()]
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'ORDER_NOT_FOUND', message: 'Order not found.' }
+      });
+    }
+
+    // Verify HMAC-SHA256 signature using Razorpay secret
+    const isValid = razorpay.verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    if (!isValid) {
+      console.warn(`⚠️ Invalid Razorpay signature for order ${order.order_number}`);
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_SIGNATURE', message: 'Payment signature verification failed.' }
+      });
+    }
+
+    const now = new Date().toISOString();
+
+    // Update order status to PAID and CONFIRMED
+    await db.run(
+      `UPDATE orders
+       SET payment_status = 'PAID',
+           status = CASE WHEN status = 'RECEIVED' THEN 'CONFIRMED' ELSE status END,
+           razorpay_order_id = ?,
+           razorpay_payment_id = ?,
+           updated_at = ?
+       WHERE id = ?`,
+      [razorpay_order_id, razorpay_payment_id, now, order.id]
+    );
+
+    // Update payments record
+    await db.run(
+      `UPDATE payments
+       SET status = 'PAID',
+           provider = 'RAZORPAY',
+           provider_order_id = ?,
+           provider_payment_id = ?,
+           updated_at = ?
+       WHERE order_id = ?`,
+      [razorpay_order_id, razorpay_payment_id, now, order.id]
+    );
+
+    console.log(`✅ Verified Razorpay payment ${razorpay_payment_id} for order ${order.order_number} (₹${order.total})`);
+
+    res.json({
+      success: true,
+      data: {
+        orderNumber: order.order_number,
+        paymentStatus: 'PAID',
+        status: 'CONFIRMED',
+        paymentId: razorpay_payment_id,
+        message: 'Payment verified successfully.'
+      }
+    });
+  } catch (err) {
+    console.error('Error verifying Razorpay signature:', err);
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Internal error during payment verification.' }
+    });
+  }
+});
+
 // POST /api/payments/razorpay/webhook - Idempotent Razorpay Webhook Handler (Active when live keys configured)
 router.post('/razorpay/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {

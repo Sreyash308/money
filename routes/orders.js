@@ -8,7 +8,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const db = require('../db');
-const { directUPI, counter } = require('../lib/payments');
+const { directUPI, counter, razorpay } = require('../lib/payments');
 
 // POST /api/orders/validate - Pre-checkout validation of cart items
 router.post('/validate', async (req, res) => {
@@ -114,7 +114,26 @@ router.post('/', async (req, res) => {
 
         let upiData = null;
         if (existingOrder.payment_method === 'UPI' && existingOrder.payment_status === 'PAYMENT_PENDING') {
-          upiData = await directUPI.createPaymentRequest(existingOrder);
+          const directUpiData = await directUPI.createPaymentRequest(existingOrder);
+          if (razorpay.isConfigured()) {
+            try {
+              const rzpData = await razorpay.createPaymentRequest({
+                id: existingOrder.id,
+                order_number: existingOrder.order_number,
+                total: existingOrder.total
+              });
+              upiData = {
+                ...rzpData,
+                upiUri: directUpiData.upiUri,
+                qrDataUrl: directUpiData.qrDataUrl,
+                directUpi: directUpiData
+              };
+            } catch (e) {
+              upiData = directUpiData;
+            }
+          } else {
+            upiData = directUpiData;
+          }
         }
 
         return res.status(200).json({
@@ -338,11 +357,38 @@ router.post('/', async (req, res) => {
     // 7. Generate Payment Payload
     let paymentPayload = null;
     if (normalizedMethod === 'UPI') {
-      paymentPayload = await directUPI.createPaymentRequest({
+      const directUpiPayload = await directUPI.createPaymentRequest({
         id: orderId,
         order_number: orderNumber,
         total: calculatedTotal
       });
+
+      if (razorpay.isConfigured()) {
+        try {
+          const rzpPayload = await razorpay.createPaymentRequest({
+            id: orderId,
+            order_number: orderNumber,
+            total: calculatedTotal
+          });
+
+          await db.run(
+            'UPDATE orders SET razorpay_order_id = ? WHERE id = ?',
+            [rzpPayload.razorpayOrderId, orderId]
+          );
+
+          paymentPayload = {
+            ...rzpPayload,
+            upiUri: directUpiPayload.upiUri,
+            qrDataUrl: directUpiPayload.qrDataUrl,
+            directUpi: directUpiPayload
+          };
+        } catch (rzpErr) {
+          console.warn('Razorpay order creation error, falling back to direct UPI:', rzpErr.message);
+          paymentPayload = directUpiPayload;
+        }
+      } else {
+        paymentPayload = directUpiPayload;
+      }
     } else {
       paymentPayload = await counter.createPaymentRequest({
         id: orderId,
@@ -442,7 +488,7 @@ router.get('/:orderNumber', async (req, res) => {
     const order = await db.get(
       `SELECT id, order_number, customer_name, order_type, table_number,
               status, payment_status, payment_method, subtotal, total, notes,
-              customer_utr, created_at
+              customer_utr, razorpay_order_id, created_at
        FROM orders
        WHERE order_number = ?`,
       [orderNumber.toUpperCase()]
@@ -463,10 +509,31 @@ router.get('/:orderNumber', async (req, res) => {
       [order.id]
     );
 
-    // Attach UPI payment instructions & QR if pending
+    // Attach UPI / Razorpay payment instructions & QR if pending
     let paymentDetails = null;
     if (order.payment_method === 'UPI') {
-      paymentDetails = await directUPI.createPaymentRequest(order);
+      const directUpiPayload = await directUPI.createPaymentRequest(order);
+      paymentDetails = { ...directUpiPayload };
+
+      if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+        try {
+          let rzpOrderId = order.razorpay_order_id;
+          if (!rzpOrderId && order.payment_status !== 'PAID') {
+            const rzp = await razorpay.createPaymentRequest(order);
+            rzpOrderId = rzp.razorpayOrderId;
+            await db.run('UPDATE orders SET razorpay_order_id = ? WHERE id = ?', [rzpOrderId, order.id]);
+          }
+          if (rzpOrderId) {
+            paymentDetails.provider = 'RAZORPAY';
+            paymentDetails.razorpayOrderId = rzpOrderId;
+            paymentDetails.razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+            paymentDetails.amountInPaise = Math.round(order.total * 100);
+            paymentDetails.currency = 'INR';
+          }
+        } catch (e) {
+          console.warn('Could not attach Razorpay details to order fetch:', e.message);
+        }
+      }
     }
 
     res.json({

@@ -762,17 +762,101 @@ function initCheckoutFlow() {
         return;
       }
 
-      // Handle Real Direct UPI Flow
+      // Handle Real Direct UPI & Razorpay Flow
       if (paymentMethod === 'UPI') {
         OchreCart.clearCart();
         closeCheckoutModal();
-        showRealUpiModal(orderData);
+
+        const payment = orderData.payment || {};
+        if (payment.razorpayOrderId && typeof Razorpay !== 'undefined') {
+          launchRazorpayCheckout(orderData);
+        } else {
+          showRealUpiModal(orderData);
+        }
       }
     } catch (err) {
       console.error('Submission error:', err);
       showToast('Something went wrong. Your order was not duplicated. Please try again.', 'error');
       nextBtn.disabled = false;
       nextBtn.innerHTML = `<span>Try Again</span>`;
+    }
+  }
+
+  // Official Razorpay Standard Checkout (UPI Apps, QR, Cards, NetBanking)
+  function launchRazorpayCheckout(orderData) {
+    const payment = orderData.payment || {};
+    const customerName = document.getElementById('checkout-name')?.value || orderData.customerName || 'Guest';
+    const customerPhone = document.getElementById('checkout-phone')?.value || orderData.customerPhone || '';
+
+    const options = {
+      key: payment.keyId || 'rzp_test_TZ7M8842SL8yiG',
+      amount: payment.amount || Math.round(orderData.total * 100),
+      currency: payment.currency || 'INR',
+      name: 'Ochre Coffee Roasters',
+      description: `Order #${orderData.orderNumber}`,
+      image: 'https://money-iota-woad.vercel.app/assets/hero_cafe.jpg',
+      order_id: payment.razorpayOrderId,
+      prefill: {
+        name: customerName,
+        contact: customerPhone
+      },
+      notes: {
+        orderNumber: orderData.orderNumber,
+        destinationVpa: payment.destinationVpa || '9182916879@ybl'
+      },
+      theme: {
+        color: '#b85d39'
+      },
+      modal: {
+        ondismiss: function() {
+          console.log('Razorpay modal closed. Showing direct UPI option.');
+          showRealUpiModal(orderData);
+        }
+      },
+      handler: async function(response) {
+        showToast('Verifying payment with banking gateway...', 'info');
+
+        try {
+          const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderNumber: orderData.orderNumber,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
+
+          const verifyJson = await verifyRes.json();
+          if (verifyJson.success) {
+            showToast('Payment verified successfully! Your order is confirmed.', 'success');
+            setTimeout(() => {
+              window.location.href = `/order.html?orderNumber=${orderData.orderNumber}&paid=true`;
+            }, 600);
+          } else {
+            showToast(verifyJson.error?.message || 'Payment verification issue. Staff will confirm at counter.', 'error');
+            showRealUpiModal(orderData);
+          }
+        } catch (err) {
+          console.error('Signature verification error:', err);
+          showToast('Payment received! Opening order tracker...', 'info');
+          window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
+        }
+      }
+    };
+
+    try {
+      const rzpInstance = new Razorpay(options);
+      rzpInstance.on('payment.failed', function(resp) {
+        console.warn('Payment failed:', resp.error);
+        showToast(resp.error?.description || 'Payment was unsuccessful. You can try direct UPI.', 'error');
+        showRealUpiModal(orderData);
+      });
+      rzpInstance.open();
+    } catch (e) {
+      console.warn('Could not launch Razorpay modal, falling back to UPI modal:', e);
+      showRealUpiModal(orderData);
     }
   }
 
@@ -804,10 +888,22 @@ function initCheckoutFlow() {
         </div>
       </div>
 
+      ${payment.razorpayOrderId ? `
+        <button type="button" class="btn btn-primary" id="btn-relaunch-rzp" style="width: 100%; margin-bottom: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 800; padding: 0.85rem;">
+          <span>⚡</span>
+          <span>Pay Online via Razorpay (Instant Confirmation)</span>
+        </button>
+        <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.1rem; color: var(--color-text-muted); font-size: 0.78rem;">
+          <div style="flex: 1; height: 1px; background: var(--border-subtle);"></div>
+          <span>OR PAY VIA DIRECT UPI</span>
+          <div style="flex: 1; height: 1px; background: var(--border-subtle);"></div>
+        </div>
+      ` : ''}
+
       <!-- Real QR Code -->
       <div style="background: #ffffff; padding: 1rem; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(0,0,0,0.06); display: inline-block; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
         ${payment.qrDataUrl ? `
-          <img src="${payment.qrDataUrl}" alt="UPI QR Code for ₹${amount}" style="width: 220px; height: 220px; display: block; margin: 0 auto;">
+          <img src="${payment.qrDataUrl}" alt="UPI QR Code for ₹${amount}" style="width: 200px; height: 200px; display: block; margin: 0 auto;">
         ` : `
           <div style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; color: var(--color-text-muted);">
             Scan via any UPI App
@@ -825,24 +921,31 @@ function initCheckoutFlow() {
       </div>
 
       <!-- Mobile UPI Intent Deep Link -->
-      <a href="${upiUri}" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+      <a href="${upiUri}" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem;">
         <span>📱</span>
         <span>Open UPI App (GPay, PhonePe, Paytm)</span>
       </a>
 
       <!-- Honest Verification Notice -->
       <div style="background: #fdf6ec; border-left: 3px solid #e6a23c; padding: 0.75rem; border-radius: 4px; font-size: 0.78rem; color: #8a6d3b; text-align: left; margin-bottom: 1.25rem; line-height: 1.45;">
-        <strong>Payment Status: Pending Staff Confirmation</strong><br>
+        <strong>Direct UPI Status: Pending Staff Confirmation</strong><br>
         Direct UPI does not instantly confirm funds to the website. After paying, tap <em>Track Order</em> below. Our barista verifies payment at the counter and begins your order.
       </div>
 
-      <a href="/order.html?orderNumber=${orderData.orderNumber}" class="btn btn-secondary" style="width: 100%; text-decoration: none; display: block; padding: 0.7rem;">
+      <a href="/order.html?orderNumber=${orderData.orderNumber}" class="btn btn-secondary" style="width: 100%; text-decoration: none; display: block; padding: 0.75rem;">
         Track Live Order Progress &rarr;
       </a>
     `;
 
     upiModal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
+
+    // Relaunch Razorpay helper
+    document.getElementById('btn-relaunch-rzp')?.addEventListener('click', () => {
+      upiModal.classList.remove('is-open');
+      document.body.style.overflow = '';
+      launchRazorpayCheckout(orderData);
+    });
 
     // Copy VPA helper
     document.getElementById('btn-copy-vpa')?.addEventListener('click', () => {
@@ -1099,6 +1202,7 @@ function initMenuFiltersAndSearch() {
       });
       tab.classList.add('is-active');
       tab.setAttribute('aria-selected', 'true');
+      tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       applyMenuFilters();
     });
   });
