@@ -5,7 +5,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   initNavbar();
-  initMenuFilter();
+  initMenuFiltersAndSearch();
   initScrollAnimations();
   initScrollspy();
   initDynamicMenuAndCart();
@@ -233,9 +233,32 @@ const OchreCart = (() => {
 window.OchreCart = OchreCart;
 
 /**
- * Global product lookup map loaded from backend
+ * Global product lookup map loaded from backend (pre-seeded for zero-latency clicks)
  */
+const FALLBACK_PRODUCTS = [
+  { id: 'prod_caramel_latte', name: 'Caramel Latte', price: 189, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Chikmagalur Washed Lot' },
+  { id: 'prod_hazelnut_mocha', name: 'Hazelnut Mocha', price: 199, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Dark Roast · Velvety' },
+  { id: 'prod_spanish_cold_brew', name: 'Spanish Cold Brew', price: 199, category_id: 'cat_coffee', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Signature Cold Pour' },
+  { id: 'prod_oat_milk_cappuccino', name: 'Oat Milk Cappuccino', price: 189, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Dairy-Free · Gentle Roast' },
+  { id: 'prod_vanilla_cinnamon_latte', name: 'Vanilla Cinnamon Latte', price: 199, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Spiced & Comforting' },
+  { id: 'prod_pour_over_v60', name: 'Single-Origin Pour Over (V60)', price: 210, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Araku Valley Micro-lot · Light Roast' },
+  { id: 'prod_iced_matcha_latte', name: 'Iced Matcha Latte', price: 199, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Antioxidant Rich · Stone Ground' },
+  { id: 'prod_blueberry_lemonade', name: 'Blueberry Lemonade', price: 179, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Tangy, Fruity & Refreshing' },
+  { id: 'prod_watermelon_cooler', name: 'Watermelon Cooler', price: 169, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Hydrating · Pure Juice' },
+  { id: 'prod_peach_iced_tea', name: 'Peach Iced Tea', price: 169, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Light & Perfectly Chilled' },
+  { id: 'prod_espresso_tonic', name: 'Cold Brew Espresso Tonic', price: 185, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Effervescent · Citrusy' },
+  { id: 'prod_masala_chai_pot', name: 'Estate Masala Chai Pot', price: 140, category_id: 'cat_tea', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Served in Clay Kulhad Pot' },
+  { id: 'prod_hibiscus_rose_tisane', name: 'Hibiscus Rose Tisane', price: 150, category_id: 'cat_tea', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Floral & Tart' },
+  { id: 'prod_grilled_cheese', name: 'Grilled Cheese Sandwich', price: 149, category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'With Garlic Herb Dip' },
+  { id: 'prod_paneer_tikka_wrap', name: 'Paneer Tikka Wrap', price: 169, category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Spicy, Wholesome & Satisfying' },
+  { id: 'prod_peri_peri_fries', name: 'Crispy Peri Peri Fries', price: 129, category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Served in Ceramic Cup' },
+  { id: 'prod_chocolate_brownie', name: 'Fudgy Chocolate Brownie', price: 99, category_id: 'cat_dessert', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Melts in Your Mouth' }
+];
+
 let menuProductsMap = {};
+FALLBACK_PRODUCTS.forEach(p => {
+  menuProductsMap[p.id] = p;
+});
 
 window.handleAddToCartClick = function(productId) {
   const prod = menuProductsMap[productId];
@@ -328,9 +351,6 @@ async function initDynamicMenuAndCart() {
   // Initial cart render
   OchreCart.renderAll();
 
-  // Setup Search Input
-  initMenuSearch();
-
   // Setup Multi-Step Checkout Modal
   initCheckoutFlow();
 }
@@ -393,6 +413,9 @@ function renderMenuCards(products) {
       <p>Try clearing your search or switching categories.</p>
     </div>
   `;
+
+  // Apply current active category tab, dietary checkboxes, and search filters
+  applyMenuFilters();
 }
 
 /**
@@ -445,51 +468,7 @@ function connectFavoritesCards() {
   });
 }
 
-/**
- * Menu Real-Time Search Filtering
- */
-function initMenuSearch() {
-  const searchInput = document.getElementById('menu-search-input');
-  const clearBtn = document.getElementById('menu-search-clear');
-  if (!searchInput) return;
 
-  function filterBySearch() {
-    const query = searchInput.value.toLowerCase().trim();
-    if (clearBtn) clearBtn.style.display = query ? 'flex' : 'none';
-
-    const items = document.querySelectorAll('#menu-grid .menu-item-card');
-    let visibleCount = 0;
-
-    items.forEach(card => {
-      const title = (card.querySelector('.item-card-title')?.textContent || '').toLowerCase();
-      const desc = (card.querySelector('.item-card-desc')?.textContent || '').toLowerCase();
-      const matches = !query || title.includes(query) || desc.includes(query);
-
-      if (matches && !card.classList.contains('is-hidden-by-category')) {
-        card.style.display = '';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
-      }
-    });
-
-    const emptyNotice = document.getElementById('menu-empty-notice');
-    if (emptyNotice) {
-      emptyNotice.style.display = visibleCount === 0 ? 'block' : 'none';
-    }
-  }
-
-  searchInput.addEventListener('input', filterBySearch);
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      searchInput.value = '';
-      clearBtn.style.display = 'none';
-      filterBySearch();
-      searchInput.focus();
-    });
-  }
-}
 
 /**
  * Multi-Step Checkout Controller
@@ -964,7 +943,6 @@ function closeOrdersModal() {
 
 window.openOrdersModal = openOrdersModal;
 window.closeOrdersModal = closeOrdersModal;
-}
 
 function openCheckoutModal() {
   if (OchreCart.getCount() === 0) {
@@ -1057,44 +1035,61 @@ function initNavbar() {
 }
 
 /**
- * Interactive Menu Filtering (Category Tabs + Dietary Toggle)
+ * Unified Menu Filtering & Real-Time Search Controller
  */
-function initMenuFilter() {
+function applyMenuFilters() {
+  const activeTab = document.querySelector('.menu-category-tab.is-active');
+  const currentCategory = activeTab ? activeTab.getAttribute('data-category') : 'all';
+  const vegOnlyToggle = document.getElementById('filter-veg-only');
+  const coldOnlyToggle = document.getElementById('filter-cold-only');
+  const searchInput = document.getElementById('menu-search-input');
+  const clearBtn = document.getElementById('menu-search-clear');
+
+  const isVegOnly = Boolean(vegOnlyToggle && vegOnlyToggle.checked);
+  const isColdOnly = Boolean(coldOnlyToggle && coldOnlyToggle.checked);
+  const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+
+  if (clearBtn) {
+    clearBtn.style.display = query ? 'flex' : 'none';
+  }
+
+  const menuItems = document.querySelectorAll('#menu-grid .menu-item-card');
+  let visibleCount = 0;
+
+  menuItems.forEach(item => {
+    const itemCategory = item.getAttribute('data-category');
+    const isVeg = item.getAttribute('data-veg') === 'true';
+    const isCold = item.getAttribute('data-cold') === 'true';
+    const title = (item.querySelector('.item-card-title')?.textContent || '').toLowerCase();
+    const desc = (item.querySelector('.item-card-desc')?.textContent || '').toLowerCase();
+
+    const matchesCategory = (currentCategory === 'all' || itemCategory === currentCategory);
+    const matchesVeg = !isVegOnly || isVeg;
+    const matchesCold = !isColdOnly || isCold;
+    const matchesSearch = !query || title.includes(query) || desc.includes(query);
+
+    if (matchesCategory && matchesVeg && matchesCold && matchesSearch) {
+      item.classList.remove('is-hidden-by-filter');
+      item.style.display = '';
+      visibleCount++;
+    } else {
+      item.classList.add('is-hidden-by-filter');
+      item.style.display = 'none';
+    }
+  });
+
+  const emptyNotice = document.getElementById('menu-empty-notice');
+  if (emptyNotice) {
+    emptyNotice.style.display = visibleCount === 0 ? 'block' : 'none';
+  }
+}
+
+function initMenuFiltersAndSearch() {
   const tabs = document.querySelectorAll('.menu-category-tab');
   const vegOnlyToggle = document.getElementById('filter-veg-only');
   const coldOnlyToggle = document.getElementById('filter-cold-only');
-  let currentCategory = 'all';
-
-  function filterItems() {
-    const isVegOnly = vegOnlyToggle ? vegOnlyToggle.checked : false;
-    const isColdOnly = coldOnlyToggle ? coldOnlyToggle.checked : false;
-    const menuItems = document.querySelectorAll('#menu-grid .menu-item-card');
-    let visibleCount = 0;
-
-    menuItems.forEach(item => {
-      const itemCategory = item.getAttribute('data-category');
-      const isVeg = item.getAttribute('data-veg') === 'true';
-      const isCold = item.getAttribute('data-cold') === 'true';
-
-      const matchesCategory = (currentCategory === 'all' || itemCategory === currentCategory);
-      const matchesVeg = !isVegOnly || isVeg;
-      const matchesCold = !isColdOnly || isCold;
-
-      if (matchesCategory && matchesVeg && matchesCold) {
-        item.classList.remove('is-hidden-by-category');
-        item.style.display = '';
-        visibleCount++;
-      } else {
-        item.classList.add('is-hidden-by-category');
-        item.style.display = 'none';
-      }
-    });
-
-    const emptyNotice = document.getElementById('menu-empty-notice');
-    if (emptyNotice) {
-      emptyNotice.style.display = visibleCount === 0 ? 'block' : 'none';
-    }
-  }
+  const searchInput = document.getElementById('menu-search-input');
+  const clearBtn = document.getElementById('menu-search-clear');
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1104,14 +1099,35 @@ function initMenuFilter() {
       });
       tab.classList.add('is-active');
       tab.setAttribute('aria-selected', 'true');
-      currentCategory = tab.getAttribute('data-category');
-      filterItems();
+      applyMenuFilters();
     });
   });
 
-  if (vegOnlyToggle) vegOnlyToggle.addEventListener('change', filterItems);
-  if (coldOnlyToggle) coldOnlyToggle.addEventListener('change', filterItems);
+  if (vegOnlyToggle) {
+    vegOnlyToggle.addEventListener('change', applyMenuFilters);
+  }
+  if (coldOnlyToggle) {
+    coldOnlyToggle.addEventListener('change', applyMenuFilters);
+  }
+  if (searchInput) {
+    searchInput.addEventListener('input', applyMenuFilters);
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+      }
+      applyMenuFilters();
+    });
+  }
+
+  // Initial filtering pass
+  applyMenuFilters();
 }
+
+window.applyMenuFilters = applyMenuFilters;
+window.initMenuFiltersAndSearch = initMenuFiltersAndSearch;
 
 /**
  * Scrollspy for Active Navigation Link Highlighting
