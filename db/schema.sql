@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS orders (
   admin_notes TEXT,
   razorpay_order_id TEXT,
   razorpay_payment_id TEXT,
+  customer_utr TEXT,
+  idempotency_key TEXT UNIQUE,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -77,7 +79,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE TABLE IF NOT EXISTS payments (
   id TEXT PRIMARY KEY,
   order_id TEXT NOT NULL REFERENCES orders(id),
-  provider TEXT DEFAULT 'RAZORPAY',
+  provider TEXT DEFAULT 'DIRECT_UPI',
   provider_order_id TEXT,
   provider_payment_id TEXT,
   amount INTEGER NOT NULL,
@@ -112,10 +114,16 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT NOT NULL
 );
 
+-- Optimized Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(customer_phone);
+CREATE INDEX IF NOT EXISTS idx_orders_idempotency ON orders(idempotency_key);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_available ON products(available);
+CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
 CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
+CREATE INDEX IF NOT EXISTS idx_payments_provider_order ON payments(provider_order_id);

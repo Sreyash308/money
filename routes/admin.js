@@ -212,7 +212,7 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
 router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await db.get('SELECT id, order_number, payment_status, status FROM orders WHERE id = ?', [id]);
+    const order = await db.get('SELECT id, order_number, payment_status, payment_method, status FROM orders WHERE id = ?', [id]);
 
     if (!order) {
       return res.status(404).json({
@@ -222,16 +222,26 @@ router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
     }
 
     const now = new Date().toISOString();
-    await db.run(
-      `UPDATE orders
-       SET payment_status = 'PAID',
-           status = CASE WHEN status = 'RECEIVED' THEN 'CONFIRMED' ELSE status END,
-           updated_at = ?
-       WHERE id = ?`,
-      [now, id]
-    );
+    await db.transaction(async (tx) => {
+      await tx.run(
+        `UPDATE orders
+         SET payment_status = 'PAID',
+             status = CASE WHEN status = 'RECEIVED' THEN 'CONFIRMED' ELSE status END,
+             updated_at = ?
+         WHERE id = ?`,
+        [now, id]
+      );
 
-    console.log(`💵 Counter payment marked PAID for order: ${order.order_number}`);
+      await tx.run(
+        `UPDATE payments
+         SET status = 'PAID',
+             updated_at = ?
+         WHERE order_id = ?`,
+        [now, id]
+      );
+    });
+
+    console.log(`💵 Payment (${order.payment_method}) marked PAID for order: ${order.order_number}`);
 
     res.json({
       success: true,

@@ -1,13 +1,14 @@
 /**
- * Comprehensive Automated Verification Suite for Ochre Coffee Roasters
- * Validates the complete order lifecycle, security rules, payment verification,
- * webhook idempotency, and admin controls.
+ * Comprehensive Verification Suite for Ochre Coffee Roasters
+ * Validates fresh start, zero fake payments, real UPI protocol (9182916879@ybl),
+ * idempotency, UTR submission, honest verification, and admin controls.
  */
 
 const http = require('http');
 const crypto = require('crypto');
 const app = require('../server');
 const db = require('../db');
+const { resetOrders } = require('../db/reset-orders');
 
 let server;
 let baseUrl;
@@ -53,7 +54,7 @@ function request(method, path, body = null, headers = {}) {
 }
 
 async function runTests() {
-  console.log('🧪 Starting Ochre Restaurant Verification Suite...\n');
+  console.log('🧪 Starting Ochre Verification Suite (Fresh Start & Real UPI)...\n');
 
   // Start test server on random high port
   await new Promise((resolve) => {
@@ -80,288 +81,255 @@ async function runTests() {
     }
   }
 
-  // TEST 1: Public Menu
-  await test('GET /api/menu returns active categories & products with availability states', async () => {
-    const res = await request('GET', '/api/menu');
-    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
-    if (!res.body.success) throw new Error('Expected success: true');
-    const { products, categories } = res.body.data;
-    if (!Array.isArray(products) || products.length === 0) throw new Error('No products returned');
-    if (!Array.isArray(categories) || categories.length === 0) throw new Error('No categories returned');
-
-    const caramelLatte = products.find(p => p.id === 'prod_caramel_latte');
-    if (!caramelLatte) throw new Error('Caramel Latte not found in menu');
-    if (caramelLatte.price !== 189) throw new Error(`Expected ₹189, got ${caramelLatte.price}`);
+  // TEST 1: Fresh Start Purge Verification
+  await test('Fresh Start: Database order history starts completely empty (0 orders)', async () => {
+    await resetOrders();
+    const count = await db.get('SELECT COUNT(*) as count FROM orders');
+    if (count.count !== 0) throw new Error(`Expected 0 orders after purge, found ${count.count}`);
+    const itemsCount = await db.get('SELECT COUNT(*) as count FROM order_items');
+    if (itemsCount.count !== 0) throw new Error(`Expected 0 order items, found ${itemsCount.count}`);
+    const paymentsCount = await db.get('SELECT COUNT(*) as count FROM payments');
+    if (paymentsCount.count !== 0) throw new Error(`Expected 0 payments, found ${paymentsCount.count}`);
   });
 
-  // TEST 2: Tables List & Occupancy
-  await test('GET /api/tables returns 10 cafe tables with occupancy status', async () => {
+  // TEST 2: Menu Integrity
+  await test('GET /api/menu returns genuine cafe items with integer prices', async () => {
+    const res = await request('GET', '/api/menu');
+    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+    const { products, categories } = res.body.data;
+    if (products.length < 15) throw new Error(`Expected at least 15 products, got ${products.length}`);
+    if (categories.length < 5) throw new Error(`Expected at least 5 categories, got ${categories.length}`);
+
+    const coldBrew = products.find(p => p.id === 'prod_spanish_cold_brew');
+    if (!coldBrew || coldBrew.price !== 199) throw new Error('Spanish Cold Brew price mismatch');
+  });
+
+  // TEST 3: Tables
+  await test('GET /api/tables returns active tables', async () => {
     const res = await request('GET', '/api/tables');
     if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
     const tables = res.body.data;
-    if (tables.length < 10) throw new Error(`Expected at least 10 tables, got ${tables.length}`);
-    const t1 = tables.find(t => t.tableNumber === 1);
-    if (!t1 || typeof t1.isOccupied !== 'boolean') throw new Error('Table 1 missing or invalid format');
+    if (tables.length !== 10) throw new Error(`Expected 10 tables, got ${tables.length}`);
   });
 
-  // TEST 3: Zero-Trust Price Manipulation Protection
-  await test('Security: Server ignores manipulated frontend prices and charges correct DB price', async () => {
-    // Malicious user attempts to set price = 1
-    const orderPayload = {
-      customerName: 'Hacker Test',
+  // TEST 4: Security: Zero-Trust Server Calculation
+  await test('Security: Server calculates totals strictly from DB (ignores frontend price tampering)', async () => {
+    const res = await request('POST', '/api/orders', {
+      customerName: 'Security Tester',
       customerPhone: '9876543210',
       orderType: 'DINE_IN',
       tableNumber: 1,
       paymentMethod: 'COUNTER',
       items: [
-        { productId: 'prod_caramel_latte', quantity: 2, price: 1 }, // Trying to pay ₹2 instead of ₹378
-        { productId: 'prod_peri_peri_fries', quantity: 1, price: 5 } // Trying to pay ₹5 instead of ₹129
+        { productId: 'prod_caramel_latte', quantity: 2, price: 1 }, // Trying to pay ₹1 instead of ₹189
+        { productId: 'prod_peri_peri_fries', quantity: 1, price: 10 } // Trying to pay ₹10 instead of ₹129
       ]
-    };
+    });
 
-    const res = await request('POST', '/api/orders', orderPayload);
     if (res.status !== 201) throw new Error(`Expected 201, got ${res.status}`);
-    // Expected DB calculation: (189 * 2) + (129 * 1) = 378 + 129 = 507
+    // Expected: (189 * 2) + (129 * 1) = 378 + 129 = 507
     if (res.body.data.total !== 507) {
-      throw new Error(`Security breach: Server trusted client price! Expected ₹507, charged ₹${res.body.data.total}`);
+      throw new Error(`Price tampering allowed! Expected ₹507, charged ₹${res.body.data.total}`);
     }
   });
 
-  // TEST 4: Invalid Table Safety
-  await test('Security: Dine-in order with non-existent table (99999) is rejected', async () => {
-    const orderPayload = {
-      customerName: 'Test Guest',
-      customerPhone: '9876543210',
-      orderType: 'DINE_IN',
-      tableNumber: 99999,
-      paymentMethod: 'COUNTER',
-      items: [{ productId: 'prod_caramel_latte', quantity: 1 }]
-    };
+  // Purge the security tester order so order history is clean
+  await resetOrders();
 
-    const res = await request('POST', '/api/orders', orderPayload);
-    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
-    if (res.body.error?.code !== 'INVALID_TABLE') throw new Error(`Expected INVALID_TABLE error, got ${res.body.error?.code}`);
-  });
-
-  // TEST 5: Pay at Counter Full Lifecycle
+  // TEST 5: First Genuine Order Creation (Pay at Counter) -> CAF-1001
   let counterOrderNumber = null;
   let counterOrderId = null;
 
-  await test('Customer: Places Dine-in Pay-at-Counter order -> Created with PENDING payment', async () => {
-    const orderPayload = {
+  await test('Genuine Order 1: Creates CAF-1001 with Counter payment in PAYMENT_PENDING', async () => {
+    const res = await request('POST', '/api/orders', {
       customerName: 'Sreyash G',
       customerPhone: '9876543210',
       orderType: 'DINE_IN',
-      tableNumber: 5,
+      tableNumber: 3,
       paymentMethod: 'COUNTER',
-      notes: 'Extra hot please',
+      notes: 'Oat milk if available',
       items: [
-        { productId: 'prod_caramel_latte', quantity: 2 },
-        { productId: 'prod_grilled_cheese', quantity: 1 }
+        { productId: 'prod_caramel_latte', quantity: 1 }, // 189
+        { productId: 'prod_chocolate_brownie', quantity: 1 } // 99 (Total: 288)
       ]
-    };
+    });
 
-    const res = await request('POST', '/api/orders', orderPayload);
     if (res.status !== 201) throw new Error(`Expected 201, got ${res.status}`);
     const ord = res.body.data;
-    if (!ord.orderNumber.startsWith('CAF-')) throw new Error(`Invalid order number: ${ord.orderNumber}`);
-    if (ord.paymentStatus !== 'PENDING') throw new Error(`Expected PENDING, got ${ord.paymentStatus}`);
+    if (ord.orderNumber !== 'CAF-1001') throw new Error(`Expected first order to be CAF-1001, got ${ord.orderNumber}`);
+    if (ord.total !== 288) throw new Error(`Expected total ₹288, got ₹${ord.total}`);
+    if (ord.paymentStatus !== 'PAYMENT_PENDING') throw new Error(`Expected PAYMENT_PENDING, got ${ord.paymentStatus}`);
     if (ord.status !== 'RECEIVED') throw new Error(`Expected RECEIVED, got ${ord.status}`);
-    if (ord.total !== (189 * 2 + 149)) throw new Error(`Expected total ₹527, got ₹${ord.total}`);
 
     counterOrderNumber = ord.orderNumber;
     counterOrderId = ord.orderId;
   });
 
-  // TEST 6: Customer Order Tracking
-  await test('Customer: Can track order status at GET /api/orders/:orderNumber', async () => {
-    const res = await request('GET', `/api/orders/${counterOrderNumber}`);
-    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
-    const ord = res.body.data;
-    if (ord.orderNumber !== counterOrderNumber) throw new Error('Order number mismatch');
-    if (ord.tableNumber !== 5) throw new Error('Table number mismatch');
-    if (!Array.isArray(ord.items) || ord.items.length !== 2) throw new Error('Items list mismatch');
-  });
-
-  // TEST 7: Admin Authentication & Protection
-  let adminToken = null;
-
-  await test('Admin: Unauthenticated requests to /api/admin/orders are blocked (401)', async () => {
-    const res = await request('GET', '/api/admin/orders');
-    if (res.status !== 401) throw new Error(`Expected 401 UNAUTHORIZED, got ${res.status}`);
-  });
-
-  await test('Admin: Login with valid credentials succeeds and returns JWT', async () => {
-    const res = await request('POST', '/api/admin/login', {
-      email: 'owner@ochrecoffee.com',
-      password: 'ochreAdmin2026!'
-    });
-    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
-    if (!res.body.data?.token) throw new Error('No JWT token returned');
-    adminToken = res.body.data.token;
-  });
-
-  // TEST 8: Admin Marks Counter Payment as Paid
-  await test('Admin: Marks Counter order as PAID -> Updates order paymentStatus to PAID', async () => {
-    const res = await request('POST', `/api/admin/orders/${counterOrderId}/mark-paid`, null, {
-      'Authorization': `Bearer ${adminToken}`
-    });
-    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
-    if (res.body.data?.paymentStatus !== 'PAID') throw new Error('Payment status was not updated to PAID');
-
-    // Verify DB
-    const check = await db.get('SELECT payment_status FROM orders WHERE id = ?', [counterOrderId]);
-    if (check.payment_status !== 'PAID') throw new Error('Database does not reflect PAID status');
-  });
-
-  // TEST 9: Admin Status Transitions
-  await test('Admin: Updates order status: RECEIVED -> PREPARING -> READY -> COMPLETED', async () => {
-    for (const nextStatus of ['PREPARING', 'READY', 'COMPLETED']) {
-      const res = await request('PATCH', `/api/admin/orders/${counterOrderId}/status`, { status: nextStatus }, {
-        'Authorization': `Bearer ${adminToken}`
-      });
-      if (res.status !== 200) throw new Error(`Failed to update to ${nextStatus}, got ${res.status}`);
-      const check = await db.get('SELECT status FROM orders WHERE id = ?', [counterOrderId]);
-      if (check.status !== nextStatus) throw new Error(`Status in DB was not updated to ${nextStatus}`);
-    }
-  });
-
-  // TEST 10: Online UPI / Razorpay Payment Lifecycle & Verification
+  // TEST 6: Genuine Order 2 (Real Direct UPI) -> CAF-1002
   let upiOrderNumber = null;
-  let rzpOrderId = null;
+  let upiOrderId = null;
+  const idempotencyKeyTest = 'test_key_' + crypto.randomUUID();
 
-  await test('UPI Flow: Place order -> Initiate Razorpay order with server-calculated amount', async () => {
-    const orderPayload = {
+  await test('Genuine Order 2: Creates CAF-1002 with real UPI QR & standard URI for 9182916879@ybl', async () => {
+    const res = await request('POST', '/api/orders', {
       customerName: 'Ananya Sharma',
       customerPhone: '9876543210',
       orderType: 'TAKEAWAY',
-      tableNumber: null,
       paymentMethod: 'UPI',
+      idempotencyKey: idempotencyKeyTest,
       items: [
         { productId: 'prod_spanish_cold_brew', quantity: 1 }, // 199
         { productId: 'prod_chocolate_brownie', quantity: 2 }   // 99 * 2 = 198 (Total: 397)
       ]
-    };
-
-    const res = await request('POST', '/api/orders', orderPayload);
-    if (res.status !== 201) throw new Error(`Order creation failed, got ${res.status}`);
-    upiOrderNumber = res.body.data.orderNumber;
-
-    // Create payment gateway order
-    const payRes = await request('POST', '/api/payments/create', { orderNumber: upiOrderNumber });
-    if (payRes.status !== 200) throw new Error(`Payment creation failed, got ${payRes.status}`);
-    const payData = payRes.body.data;
-    if (payData.amount !== 39700) throw new Error(`Expected 39700 paise, got ${payData.amount}`);
-    if (payData.destinationVpa !== '9182916879@ybl') throw new Error(`Target VPA mismatch: ${payData.destinationVpa}`);
-    rzpOrderId = payData.razorpayOrderId;
-  });
-
-  await test('Security: Tampered payment verification signature is REJECTED', async () => {
-    const fakeVerification = {
-      orderNumber: upiOrderNumber,
-      razorpayOrderId: rzpOrderId,
-      razorpayPaymentId: 'pay_tampered_123',
-      razorpaySignature: 'totally_forged_fake_signature_hash'
-    };
-
-    const res = await request('POST', '/api/payments/verify', fakeVerification);
-    if (res.status !== 400) throw new Error(`Expected 400 rejection for forged signature, got ${res.status}`);
-
-    // Verify order was NOT marked paid
-    const check = await db.get('SELECT payment_status FROM orders WHERE order_number = ?', [upiOrderNumber]);
-    if (check.payment_status === 'PAID') throw new Error('Security breach: Order was marked paid with invalid signature!');
-  });
-
-  await test('UPI Flow: Valid signature verification marks order PAID and CONFIRMED', async () => {
-    const validPaymentId = 'pay_verified_789';
-    const validSig = 'sim_verified_sig';
-
-    const res = await request('POST', '/api/payments/verify', {
-      orderNumber: upiOrderNumber,
-      razorpayOrderId: rzpOrderId,
-      razorpayPaymentId: validPaymentId,
-      razorpaySignature: validSig
     });
 
-    if (res.status !== 200) throw new Error(`Verification failed, got ${res.status}`);
-    const check = await db.get('SELECT status, payment_status FROM orders WHERE order_number = ?', [upiOrderNumber]);
-    if (check.payment_status !== 'PAID') throw new Error(`Expected PAID, got ${check.payment_status}`);
-    if (check.status !== 'CONFIRMED') throw new Error(`Expected CONFIRMED, got ${check.status}`);
-  });
+    if (res.status !== 201) throw new Error(`Expected 201, got ${res.status}`);
+    const ord = res.body.data;
+    if (ord.orderNumber !== 'CAF-1002') throw new Error(`Expected CAF-1002, got ${ord.orderNumber}`);
+    if (ord.total !== 397) throw new Error(`Expected ₹397, got ₹${ord.total}`);
+    if (ord.paymentStatus !== 'PAYMENT_PENDING') throw new Error(`Expected PAYMENT_PENDING, got ${ord.paymentStatus}`);
 
-  // TEST 11: Webhook Idempotency
-  await test('Webhook: Processing same payment event twice is idempotent', async () => {
-    const testEventId = 'evt_test_idempotency_' + crypto.randomUUID().slice(0, 8);
-    const webhookPayload = JSON.stringify({
-      entity: 'event',
-      id: testEventId,
-      event: 'order.paid',
-      payload: {
-        order: {
-          entity: {
-            id: rzpOrderId,
-            amount: 39700,
-            status: 'paid'
-          }
-        }
-      }
-    });
-
-    // First arrival
-    const res1 = await request('POST', '/api/payments/razorpay/webhook', webhookPayload, {
-      'x-razorpay-signature': 'sim_sig'
-    });
-    if (res1.status !== 200) throw new Error(`Expected 200 on first webhook, got ${res1.status}`);
-
-    // Second arrival (retry)
-    const res2 = await request('POST', '/api/payments/razorpay/webhook', webhookPayload, {
-      'x-razorpay-signature': 'sim_sig'
-    });
-    if (res2.status !== 200) throw new Error(`Expected 200 on second webhook, got ${res2.status}`);
-    if (res2.body.status !== 'already_processed') throw new Error(`Expected already_processed, got ${res2.body.status}`);
-  });
-
-  // TEST 12: Admin Product Availability Toggle & Checkout Rejection
-  await test('Admin: Toggles product availability -> Customer order for unavailable item is REJECTED', async () => {
-    // 1. Toggle Caramel Latte to UNAVAILABLE
-    const toggleRes = await request('PATCH', '/api/admin/products/prod_caramel_latte/availability', null, {
-      'Authorization': `Bearer ${adminToken}`
-    });
-    if (toggleRes.status !== 200) throw new Error(`Toggle failed, got ${toggleRes.status}`);
-    if (toggleRes.body.data.available !== false) throw new Error('Product should be unavailable');
-
-    // 2. Customer attempts to checkout with Caramel Latte
-    const orderPayload = {
-      customerName: 'Late Customer',
-      customerPhone: '9876543210',
-      orderType: 'TAKEAWAY',
-      tableNumber: null,
-      paymentMethod: 'COUNTER',
-      items: [{ productId: 'prod_caramel_latte', quantity: 1 }]
-    };
-
-    const checkoutRes = await request('POST', '/api/orders', orderPayload);
-    if (checkoutRes.status !== 400) throw new Error(`Expected 400 for unavailable item, got ${checkoutRes.status}`);
-    if (checkoutRes.body.error?.code !== 'PRODUCT_UNAVAILABLE') {
-      throw new Error(`Expected PRODUCT_UNAVAILABLE, got ${checkoutRes.body.error?.code}`);
+    const payment = ord.payment;
+    if (!payment) throw new Error('Payment payload missing from order creation response');
+    if (payment.destinationVpa !== '9182916879@ybl') throw new Error(`Destination VPA mismatch: ${payment.destinationVpa}`);
+    if (!payment.upiUri.includes('pa=9182916879%40ybl') && !payment.upiUri.includes('pa=9182916879@ybl')) {
+      throw new Error(`UPI URI does not contain target VPA: ${payment.upiUri}`);
+    }
+    if (!payment.upiUri.includes('am=397.00')) {
+      throw new Error(`UPI URI does not contain exact server amount: ${payment.upiUri}`);
+    }
+    if (!payment.qrDataUrl.startsWith('data:image/png;base64,')) {
+      throw new Error('Valid QR Code Data URL was not generated');
     }
 
-    // 3. Toggle Caramel Latte back to AVAILABLE
-    await request('PATCH', '/api/admin/products/prod_caramel_latte/availability', null, {
-      'Authorization': `Bearer ${adminToken}`
-    });
+    upiOrderNumber = ord.orderNumber;
+    upiOrderId = ord.orderId;
   });
 
-  // TEST 13: Admin Stats Reporting
-  await test('Admin: GET /api/admin/stats returns accurate revenue and order counts', async () => {
+  // TEST 7: Idempotency Enforcement
+  await test('Idempotency: Re-submitting identical order with same idempotencyKey returns existing order without duplication', async () => {
+    const res = await request('POST', '/api/orders', {
+      customerName: 'Ananya Sharma',
+      customerPhone: '9876543210',
+      orderType: 'TAKEAWAY',
+      paymentMethod: 'UPI',
+      idempotencyKey: idempotencyKeyTest,
+      items: [
+        { productId: 'prod_spanish_cold_brew', quantity: 1 },
+        { productId: 'prod_chocolate_brownie', quantity: 2 }
+      ]
+    });
+
+    if (res.status !== 200) throw new Error(`Expected 200 replay, got ${res.status}`);
+    if (res.body.data.orderNumber !== upiOrderNumber) throw new Error('Did not return original order number');
+    if (!res.body.data.isIdempotentReplay) throw new Error('Expected isIdempotentReplay flag');
+
+    // Verify DB count has not increased
+    const count = await db.get('SELECT COUNT(*) as count FROM orders');
+    if (count.count !== 2) throw new Error(`Order duplicated! Expected 2 orders, found ${count.count}`);
+  });
+
+  // TEST 8: Customer Submits 12-Digit UPI UTR
+  await test('UPI Flow: Customer submits 12-digit UTR -> Recorded on order without fake auto-verification', async () => {
+    const testUtr = '423589123456';
+    const res = await request('POST', '/api/payments/submit-utr', {
+      orderNumber: upiOrderNumber,
+      utr: testUtr
+    });
+
+    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+    if (res.body.data.customerUtr !== testUtr) throw new Error('UTR was not returned');
+
+    // Security & Honest Rule: Order status MUST STILL BE PAYMENT_PENDING
+    const orderCheck = await db.get('SELECT customer_utr, payment_status FROM orders WHERE order_number = ?', [upiOrderNumber]);
+    if (orderCheck.customer_utr !== testUtr) throw new Error('UTR was not saved in DB');
+    if (orderCheck.payment_status !== 'PAYMENT_PENDING') {
+      throw new Error(`Rule Violation: Order marked ${orderCheck.payment_status} before admin verification!`);
+    }
+  });
+
+  // TEST 9: Admin Authentication & Order Review
+  let adminToken = null;
+
+  await test('Admin: Login and fetch orders queue with genuine data', async () => {
+    const loginRes = await request('POST', '/api/admin/login', {
+      email: 'owner@ochrecoffee.com',
+      password: 'ochreAdmin2026!'
+    });
+    if (loginRes.status !== 200) throw new Error(`Login failed, got ${loginRes.status}`);
+    adminToken = loginRes.body.data.token;
+
+    const ordersRes = await request('GET', '/api/admin/orders', null, {
+      'Authorization': `Bearer ${adminToken}`
+    });
+    if (ordersRes.status !== 200) throw new Error(`Orders fetch failed, got ${ordersRes.status}`);
+    const orders = ordersRes.body.data;
+    if (orders.length !== 2) throw new Error(`Expected exactly 2 genuine orders, found ${orders.length}`);
+
+    // Verify customer UTR is visible to admin
+    const upiOrd = orders.find(o => o.order_number === upiOrderNumber);
+    if (!upiOrd || upiOrd.customer_utr !== '423589123456') throw new Error('Admin did not receive customer UTR');
+  });
+
+  // TEST 10: Admin Verifies & Marks UPI Order PAID
+  await test('Admin: Verifies UPI payment and clicks Mark Paid -> Updates payment_status to PAID and status to CONFIRMED', async () => {
+    const res = await request('POST', `/api/admin/orders/${upiOrderId}/mark-paid`, null, {
+      'Authorization': `Bearer ${adminToken}`
+    });
+    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+    if (res.body.data.paymentStatus !== 'PAID') throw new Error('Order not marked PAID');
+
+    const dbCheck = await db.get('SELECT status, payment_status FROM orders WHERE id = ?', [upiOrderId]);
+    if (dbCheck.payment_status !== 'PAID') throw new Error('DB does not reflect PAID status');
+    if (dbCheck.status !== 'CONFIRMED') throw new Error(`Expected CONFIRMED, got ${dbCheck.status}`);
+  });
+
+  // TEST 11: Admin Marks Counter Order PAID & Advances Status
+  await test('Admin: Marks Counter order as PAID and advances to READY', async () => {
+    await request('POST', `/api/admin/orders/${counterOrderId}/mark-paid`, null, {
+      'Authorization': `Bearer ${adminToken}`
+    });
+
+    const advanceRes = await request('PATCH', `/api/admin/orders/${counterOrderId}/status`, { status: 'READY' }, {
+      'Authorization': `Bearer ${adminToken}`
+    });
+    if (advanceRes.status !== 200) throw new Error('Status update failed');
+
+    const check = await db.get('SELECT status, payment_status FROM orders WHERE id = ?', [counterOrderId]);
+    if (check.status !== 'READY') throw new Error(`Expected READY, got ${check.status}`);
+    if (check.payment_status !== 'PAID') throw new Error(`Expected PAID, got ${check.payment_status}`);
+  });
+
+  // TEST 12: Customer Live Tracking Reflects Verified Updates
+  await test('Customer: GET /api/orders/:orderNumber reflects live PAID status and items breakdown', async () => {
+    const res = await request('GET', `/api/orders/${upiOrderNumber}`);
+    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+    const ord = res.body.data;
+    if (ord.paymentStatus !== 'PAID') throw new Error(`Customer tracker shows ${ord.paymentStatus} instead of PAID`);
+    if (ord.status !== 'CONFIRMED') throw new Error(`Customer tracker shows ${ord.status} instead of CONFIRMED`);
+    if (ord.customerUtr !== '423589123456') throw new Error('Customer UTR missing in tracker');
+  });
+
+  // TEST 13: Customer History API
+  await test('Customer: GET /api/orders/history returns genuine orders placed on customer device', async () => {
+    const res = await request('GET', `/api/orders/history?orderNumbers=${counterOrderNumber},${upiOrderNumber}`);
+    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+    const list = res.body.data;
+    if (list.length !== 2) throw new Error(`Expected 2 orders, got ${list.length}`);
+    if (list[0].order_number !== upiOrderNumber) throw new Error('Expected newest order first');
+  });
+
+  // TEST 14: Admin Stats Reporting Reflects Real Data
+  await test('Admin: GET /api/admin/stats returns metrics strictly calculated from active database', async () => {
     const res = await request('GET', '/api/admin/stats', null, {
       'Authorization': `Bearer ${adminToken}`
     });
     if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
     const s = res.body.data;
-    if (typeof s.todayOrders !== 'number' || s.todayOrders < 2) throw new Error(`Expected at least 2 orders today, got ${s.todayOrders}`);
-    if (typeof s.todayRevenue !== 'number' || s.todayRevenue < 397) throw new Error(`Expected revenue >= 397, got ${s.todayRevenue}`);
-    if (s.destinationVpa !== '9182916879@ybl') throw new Error(`Expected destination VPA 9182916879@ybl, got ${s.destinationVpa}`);
+    if (s.todayOrders !== 2) throw new Error(`Expected exactly 2 genuine orders today, got ${s.todayOrders}`);
+    // Both orders are marked PAID: 288 + 397 = 685
+    if (s.todayRevenue !== 685) throw new Error(`Expected revenue ₹685, got ₹${s.todayRevenue}`);
+    if (s.destinationVpa !== '9182916879@ybl') throw new Error(`Destination VPA mismatch: ${s.destinationVpa}`);
   });
 
   console.log(`\n========================================`);

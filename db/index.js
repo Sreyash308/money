@@ -170,6 +170,25 @@ async function initDb() {
   const schemaSql = fs.readFileSync(schemaPath, 'utf8');
   
   if (dbType === 'sqlite') {
+    // 1. Safe column migrations if orders table already exists
+    try {
+      const hasOrders = sqliteDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'").get();
+      if (hasOrders) {
+        const tableInfo = sqliteDb.prepare("PRAGMA table_info(orders)").all();
+        const columnNames = tableInfo.map(c => c.name);
+
+        if (!columnNames.includes('customer_utr')) {
+          sqliteDb.exec("ALTER TABLE orders ADD COLUMN customer_utr TEXT;");
+        }
+        if (!columnNames.includes('idempotency_key')) {
+          sqliteDb.exec("ALTER TABLE orders ADD COLUMN idempotency_key TEXT;");
+        }
+      }
+    } catch (migErr) {
+      console.warn('Migration note:', migErr.message);
+    }
+
+    // 2. Execute schema (tables and indexes)
     sqliteDb.exec(schemaSql);
   } else {
     await pgPool.query(schemaSql);

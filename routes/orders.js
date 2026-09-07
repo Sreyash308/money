@@ -1,12 +1,14 @@
 /**
  * Orders Route
- * Zero-trust order validation, creation, and customer tracking.
+ * Zero-trust order validation, idempotent creation, real UPI payload generation,
+ * and customer order tracking.
  */
 
 const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const db = require('../db');
+const { directUPI, counter } = require('../lib/payments');
 
 // POST /api/orders/validate - Pre-checkout validation of cart items
 router.post('/validate', async (req, res) => {
@@ -83,10 +85,57 @@ router.post('/validate', async (req, res) => {
   }
 });
 
-// POST /api/orders - Create new restaurant order with strict server validation
+// POST /api/orders - Fast, single-pass, idempotent order creation
 router.post('/', async (req, res) => {
   try {
-    const { customerName, customerPhone, orderType, tableNumber, paymentMethod, notes, items } = req.body;
+    const {
+      customerName,
+      customerPhone,
+      orderType,
+      tableNumber,
+      paymentMethod = 'UPI',
+      notes,
+      items,
+      idempotencyKey
+    } = req.body;
+
+    // 0. Idempotency Check: Prevent duplicate orders on network retries or double-clicks
+    if (idempotencyKey && typeof idempotencyKey === 'string') {
+      const existingOrder = await db.get(
+        'SELECT * FROM orders WHERE idempotency_key = ?',
+        [idempotencyKey.trim()]
+      );
+
+      if (existingOrder) {
+        const orderItems = await db.all(
+          'SELECT product_name_snapshot AS name, unit_price_snapshot AS unitPrice, quantity, subtotal FROM order_items WHERE order_id = ?',
+          [existingOrder.id]
+        );
+
+        let upiData = null;
+        if (existingOrder.payment_method === 'UPI' && existingOrder.payment_status === 'PAYMENT_PENDING') {
+          upiData = await directUPI.createPaymentRequest(existingOrder);
+        }
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            orderId: existingOrder.id,
+            orderNumber: existingOrder.order_number,
+            customerName: existingOrder.customer_name,
+            orderType: existingOrder.order_type,
+            tableNumber: existingOrder.table_number,
+            paymentMethod: existingOrder.payment_method,
+            paymentStatus: existingOrder.payment_status,
+            status: existingOrder.status,
+            total: existingOrder.total,
+            items: orderItems,
+            payment: upiData,
+            isIdempotentReplay: true
+          }
+        });
+      }
+    }
 
     // 1. Validate Customer Details
     if (!customerName || typeof customerName !== 'string' || customerName.trim().length === 0) {
@@ -141,14 +190,15 @@ router.post('/', async (req, res) => {
     }
 
     // 3. Validate Payment Method
-    if (paymentMethod !== 'COUNTER' && paymentMethod !== 'UPI') {
+    const normalizedMethod = (paymentMethod || 'UPI').toUpperCase();
+    if (normalizedMethod !== 'COUNTER' && normalizedMethod !== 'UPI') {
       return res.status(400).json({
         success: false,
-        error: { code: 'INVALID_PAYMENT_METHOD', message: 'Payment method must be Counter or UPI.' }
+        error: { code: 'INVALID_PAYMENT_METHOD', message: 'Payment method must be Pay at Counter or Online UPI.' }
       });
     }
 
-    // 4. Validate Items & Re-calculate Total Server-Side
+    // 4. Validate Items & Re-calculate Total Server-Side (Zero Trust)
     if (!Array.isArray(items) || items.length === 0 || items.length > 30) {
       return res.status(400).json({
         success: false,
@@ -185,7 +235,7 @@ router.post('/', async (req, res) => {
           success: false,
           error: {
             code: 'PRODUCT_UNAVAILABLE',
-            message: `"${product.name}" is no longer available. Please update your cart.`
+            message: `"${product.name}" is sold out. Please update your cart.`
           }
         });
       }
@@ -203,7 +253,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 5. Generate Unique Order Number (CAF-1001, CAF-1002...)
+    // 5. Generate Sequential Order Number (CAF-1001, CAF-1002...)
     const lastOrder = await db.get(
       "SELECT order_number FROM orders WHERE order_number LIKE 'CAF-%' ORDER BY created_at DESC LIMIT 1"
     );
@@ -215,11 +265,10 @@ router.post('/', async (req, res) => {
       }
     }
     const orderNumber = `CAF-${nextNum}`;
-
     const orderId = 'ord_' + crypto.randomUUID();
     const now = new Date().toISOString();
-
     const cleanNotes = notes && typeof notes === 'string' ? notes.trim().slice(0, 300) : null;
+    const cleanIdempotencyKey = idempotencyKey && typeof idempotencyKey === 'string' ? idempotencyKey.trim() : null;
 
     // 6. Insert Order & Order Items within a Transaction
     await db.transaction(async (tx) => {
@@ -227,8 +276,8 @@ router.post('/', async (req, res) => {
         `INSERT INTO orders (
           id, order_number, customer_name, customer_phone, order_type,
           table_id, table_number, status, payment_status, payment_method,
-          subtotal, tax, discount, total, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)`,
+          subtotal, tax, discount, total, notes, idempotency_key, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'RECEIVED', 'PAYMENT_PENDING', ?, ?, 0, 0, ?, ?, ?, ?, ?)`,
         [
           orderId,
           orderNumber,
@@ -237,12 +286,11 @@ router.post('/', async (req, res) => {
           orderType,
           validTableId,
           validTableNumber,
-          'RECEIVED',
-          'PENDING',
-          paymentMethod,
+          normalizedMethod,
           calculatedTotal,
           calculatedTotal,
           cleanNotes,
+          cleanIdempotencyKey,
           now,
           now
         ]
@@ -266,9 +314,42 @@ router.post('/', async (req, res) => {
           ]
         );
       }
+
+      // Record in payments table
+      const paymentId = 'payrec_' + crypto.randomUUID();
+      await tx.run(
+        `INSERT INTO payments (
+          id, order_id, provider, amount, currency, status, method, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'INR', 'PENDING', ?, ?, ?)`,
+        [
+          paymentId,
+          orderId,
+          normalizedMethod === 'UPI' ? 'DIRECT_UPI' : 'COUNTER',
+          calculatedTotal,
+          normalizedMethod,
+          now,
+          now
+        ]
+      );
     });
 
-    console.log(`🛎️  New Order Created: ${orderNumber} (${orderType} · ₹${calculatedTotal} · ${paymentMethod})`);
+    console.log(`🛎️  New Genuine Order Created: ${orderNumber} (${orderType} · ₹${calculatedTotal} · ${normalizedMethod})`);
+
+    // 7. Generate Payment Payload
+    let paymentPayload = null;
+    if (normalizedMethod === 'UPI') {
+      paymentPayload = await directUPI.createPaymentRequest({
+        id: orderId,
+        order_number: orderNumber,
+        total: calculatedTotal
+      });
+    } else {
+      paymentPayload = await counter.createPaymentRequest({
+        id: orderId,
+        order_number: orderNumber,
+        total: calculatedTotal
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -278,8 +359,8 @@ router.post('/', async (req, res) => {
         customerName: customerName.trim(),
         orderType,
         tableNumber: validTableNumber,
-        paymentMethod,
-        paymentStatus: 'PENDING',
+        paymentMethod: normalizedMethod,
+        paymentStatus: 'PAYMENT_PENDING',
         status: 'RECEIVED',
         total: calculatedTotal,
         items: validatedItems.map(i => ({
@@ -287,14 +368,69 @@ router.post('/', async (req, res) => {
           unitPrice: i.priceSnapshot,
           quantity: i.quantity,
           subtotal: i.subtotal
-        }))
+        })),
+        payment: paymentPayload
       }
     });
   } catch (err) {
     console.error('Error creating order:', err);
     res.status(500).json({
       success: false,
-      error: { code: 'SERVER_ERROR', message: 'Failed to create order.' }
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Something went wrong. Your order was not duplicated. Please try again.'
+      }
+    });
+  }
+});
+
+// GET /api/orders/history - Customer Order History (by comma-separated order numbers or phone)
+router.get('/history', async (req, res) => {
+  try {
+    const { orderNumbers, phone } = req.query;
+
+    let orders = [];
+    if (orderNumbers) {
+      const numbersList = orderNumbers
+        .split(',')
+        .map(n => n.trim().toUpperCase())
+        .filter(n => /^CAF-\d+$/.test(n));
+
+      if (numbersList.length > 0) {
+        orders = await db.all(
+          `SELECT id, order_number, customer_name, order_type, table_number,
+                  status, payment_status, payment_method, total, created_at
+           FROM orders
+           WHERE order_number IN (${numbersList.map(() => '?').join(',')})
+           ORDER BY created_at DESC, order_number DESC
+           LIMIT 20`,
+          numbersList
+        );
+      }
+    } else if (phone) {
+      const cleanPhone = phone.toString().replace(/\D/g, '');
+      if (cleanPhone.length >= 10) {
+        orders = await db.all(
+          `SELECT id, order_number, customer_name, order_type, table_number,
+                  status, payment_status, payment_method, total, created_at
+           FROM orders
+           WHERE customer_phone = ?
+           ORDER BY created_at DESC, order_number DESC
+           LIMIT 20`,
+          [cleanPhone]
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      data: orders
+    });
+  } catch (err) {
+    console.error('Error fetching customer history:', err);
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to fetch order history.' }
     });
   }
 });
@@ -305,7 +441,8 @@ router.get('/:orderNumber', async (req, res) => {
     const { orderNumber } = req.params;
     const order = await db.get(
       `SELECT id, order_number, customer_name, order_type, table_number,
-              status, payment_status, payment_method, subtotal, total, notes, created_at
+              status, payment_status, payment_method, subtotal, total, notes,
+              customer_utr, created_at
        FROM orders
        WHERE order_number = ?`,
       [orderNumber.toUpperCase()]
@@ -326,6 +463,12 @@ router.get('/:orderNumber', async (req, res) => {
       [order.id]
     );
 
+    // Attach UPI payment instructions & QR if pending
+    let paymentDetails = null;
+    if (order.payment_method === 'UPI') {
+      paymentDetails = await directUPI.createPaymentRequest(order);
+    }
+
     res.json({
       success: true,
       data: {
@@ -339,8 +482,10 @@ router.get('/:orderNumber', async (req, res) => {
         subtotal: order.subtotal,
         total: order.total,
         notes: order.notes,
+        customerUtr: order.customer_utr,
         createdAt: order.created_at,
-        items
+        items,
+        payment: paymentDetails
       }
     });
   } catch (err) {

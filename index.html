@@ -117,6 +117,10 @@
 
       <!-- Primary Action Buttons -->
       <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <button class="btn btn-secondary btn-sm" id="nav-orders-btn" style="padding: 0.45rem 0.85rem; font-size: 0.84rem; display: flex; align-items: center; gap: 0.35rem;" aria-label="View My Orders">
+          <span>📋</span>
+          <span>My Orders</span>
+        </button>
         <button class="cart-trigger-btn" id="nav-cart-btn" aria-label="View Shopping Cart">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="9" cy="21" r="1"></circle>
@@ -147,6 +151,7 @@
       <li><a href="#experience" class="mobile-nav-link">Experience</a></li>
       <li><a href="#gallery" class="mobile-nav-link">Gallery</a></li>
       <li><a href="#visit" class="mobile-nav-link">Visit Us</a></li>
+      <li><a href="javascript:void(0)" class="mobile-nav-link" id="mobile-orders-link" style="font-weight: 700;">📋 My Orders</a></li>
       <li><a href="javascript:void(0)" class="mobile-nav-link" id="mobile-cart-link" style="color: var(--color-accent-ochre); font-weight: 800;">🛒 View Cart (<span id="mobile-cart-badge">0</span>)</a></li>
       <li><a href="/admin" class="mobile-nav-link" style="opacity: 0.7; font-size: 0.92rem;">🔐 Staff Dashboard</a></li>
     </ul>
@@ -1118,8 +1123,8 @@
               <div style="display: flex; align-items: center; gap: 1rem; text-align: left;">
                 <div style="font-size: 2rem;">⚡</div>
                 <div>
-                  <div class="selectable-card-title">Pay Online via UPI (Razorpay)</div>
-                  <div class="selectable-card-desc">Google Pay, PhonePe, Paytm, BHIM &amp; UPI QR · Fast &amp; Verified</div>
+                  <div class="selectable-card-title">Pay Online with UPI</div>
+                  <div class="selectable-card-desc">Scan dynamic QR or open UPI App (GPay, PhonePe, Paytm, BHIM) · VPA: 9182916879@ybl</div>
                 </div>
               </div>
             </div>
@@ -1168,6 +1173,36 @@
       <div class="checkout-modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" id="checkout-back-btn" style="visibility: hidden;">&larr; Back</button>
         <button type="button" class="btn btn-primary" id="checkout-next-btn">Continue &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       REAL UPI PAYMENT MODAL
+       ========================================================================== -->
+  <div class="checkout-modal-overlay" id="upi-modal-overlay" aria-hidden="true">
+    <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="upi-modal-title" style="max-width: 440px; text-align: center;">
+      <div class="checkout-modal-head" style="justify-content: center; position: relative;">
+        <h3 id="upi-modal-title" style="font-size: 1.2rem; font-weight: 800; color: var(--color-text-primary);">Pay with UPI</h3>
+        <button class="cart-drawer-close" id="upi-modal-close" aria-label="Close UPI modal" style="position: absolute; right: 1.25rem;">&times;</button>
+      </div>
+      <div class="checkout-modal-body" style="padding: 1.5rem 1.8rem;" id="upi-modal-body">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       CUSTOMER "MY ORDERS" MODAL
+       ========================================================================== -->
+  <div class="checkout-modal-overlay" id="orders-modal-overlay" aria-hidden="true">
+    <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="orders-modal-title" style="max-width: 540px;">
+      <div class="checkout-modal-head">
+        <h3 id="orders-modal-title" style="font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary);">My Orders</h3>
+        <button class="cart-drawer-close" id="orders-modal-close" aria-label="Close orders modal">&times;</button>
+      </div>
+      <div class="checkout-modal-body" id="customer-orders-body" style="padding: 1.5rem; max-height: 65vh; overflow-y: auto;">
+        <!-- Rendered dynamically with genuine past orders or clean empty state "No orders yet" -->
       </div>
     </div>
   </div>

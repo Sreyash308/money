@@ -769,8 +769,12 @@
 
       if (orders.length === 0) {
         container.innerHTML = `
-          <div style="grid-column: 1 / -1; text-align: center; padding: 4rem; color: var(--admin-text-muted);">
-            No orders match the current filter.
+          <div style="grid-column: 1 / -1; text-align: center; padding: 5rem 2rem; color: var(--admin-text-muted);">
+            <div style="font-size: 3rem; margin-bottom: 0.8rem;">☕</div>
+            <div style="font-size: 1.25rem; font-weight: 800; color: #fff; margin-bottom: 0.4rem;">No orders yet</div>
+            <div style="font-size: 0.88rem; max-width: 380px; margin: 0 auto; line-height: 1.5;">
+              All previous demo/seed orders have been purged. The order queue will live update when genuine orders are placed.
+            </div>
           </div>
         `;
         return;
@@ -779,6 +783,7 @@
       container.innerHTML = orders.map(ord => {
         const statusClass = `status-${ord.status.toLowerCase()}`;
         const isPaid = ord.payment_status === 'PAID';
+        const isUpi = ord.payment_method === 'UPI';
 
         return `
           <div class="admin-order-card ${statusClass}" id="ord-card-${ord.id}">
@@ -793,8 +798,12 @@
               </div>
               <div style="text-align: right;">
                 <span class="admin-badge" style="background: ${getStatusColor(ord.status)}">${ord.status}</span>
-                <div style="font-size: 0.75rem; margin-top: 4px; color: ${isPaid ? '#27ae60' : '#f2994a'}; font-weight: 700;">
-                  ${isPaid ? '✓ PAID (' + ord.payment_method + ')' : '⏳ PAYMENT PENDING'}
+                <div style="font-size: 0.75rem; margin-top: 4px; font-weight: 800; color: ${isPaid ? '#27ae60' : isUpi ? '#e6a23c' : '#f2994a'};">
+                  ${isPaid 
+                    ? `✓ PAID (${ord.payment_method})` 
+                    : isUpi 
+                      ? '⏳ UPI - PENDING VERIFICATION' 
+                      : '⏳ COUNTER - UNPAID'}
                 </div>
               </div>
             </div>
@@ -810,6 +819,13 @@
               ${ord.notes ? `
                 <div style="background: rgba(242, 153, 74, 0.1); border-left: 3px solid #f2994a; padding: 0.4rem 0.6rem; font-size: 0.8rem; margin-bottom: 0.8rem; color: #f2994a;">
                   <strong>Note:</strong> ${ord.notes}
+                </div>
+              ` : ''}
+
+              ${ord.customer_utr ? `
+                <div style="background: rgba(46, 125, 50, 0.15); border: 1px solid #2e7d32; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.8rem; font-size: 0.8rem; color: #a5d6a7;">
+                  <strong>Guest Submitted UPI UTR:</strong> <code style="color: #fff; font-size: 0.92rem; font-weight: 800;">${ord.customer_utr}</code>
+                  <div style="font-size: 0.72rem; color: var(--admin-text-muted); margin-top: 2px;">Match with incoming alerts to 9182916879@ybl</div>
                 </div>
               ` : ''}
 
@@ -832,7 +848,7 @@
               <div class="action-btns-row">
                 ${!isPaid ? `
                   <button class="btn btn-sm" style="background:#27ae60; color:#fff;" onclick="markOrderPaid('${ord.id}')">
-                    💵 Mark Paid
+                    ${isUpi ? '✅ Verify & Mark Paid' : '💵 Settle & Mark Paid'}
                   </button>
                 ` : ''}
 

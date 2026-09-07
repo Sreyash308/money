@@ -320,6 +320,7 @@
     // Extract orderNumber from URL params or pathname
     const urlParams = new URLSearchParams(window.location.search);
     let orderNumber = urlParams.get('orderNumber');
+    let pollInterval = null;
 
     if (!orderNumber) {
       const parts = window.location.pathname.split('/');
@@ -330,15 +331,76 @@
     }
 
     if (!orderNumber) {
-      document.getElementById('order-number-display').textContent = 'Order Not Specified';
-      document.getElementById('order-status-heading').textContent = 'No Order Found';
-      document.getElementById('order-status-subhead').textContent = 'Please check your order link or explore our menu.';
+      renderCustomerHistoryFallback();
     } else {
       orderNumber = orderNumber.toUpperCase();
       document.getElementById('order-number-display').textContent = orderNumber;
       fetchOrderDetails();
       // Poll order status every 4 seconds
-      const pollInterval = setInterval(fetchOrderDetails, 4000);
+      pollInterval = setInterval(fetchOrderDetails, 4000);
+    }
+
+    function getLocalOrders() {
+      try {
+        return JSON.parse(localStorage.getItem('ochre_customer_orders') || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function renderCustomerHistoryFallback() {
+      const card = document.getElementById('order-card');
+      const orders = getLocalOrders();
+
+      if (orders.length === 0) {
+        card.innerHTML = `
+          <div class="order-card-header" style="padding: 3.5rem 2rem;">
+            <div class="order-success-icon" style="background: var(--bg-secondary); color: var(--color-text-muted);">☕</div>
+            <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: 0.4rem;">
+              No orders yet
+            </h1>
+            <p style="font-size: 0.92rem; color: var(--color-text-secondary); max-width: 360px; margin: 0 auto 1.8rem; line-height: 1.5;">
+              You haven't placed any orders yet. Explore our handcrafted specialty brews and fresh bakery items.
+            </p>
+            <a href="/#menu" class="btn btn-primary" style="padding: 0.75rem 2rem;">Explore Menu &rarr;</a>
+          </div>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="order-card-header">
+            <div class="order-success-icon">📋</div>
+            <h1 style="font-size: 1.45rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: 0.3rem;">
+              Your Order History
+            </h1>
+            <p style="font-size: 0.88rem; color: var(--color-text-secondary);">
+              Select any genuine order below to view its live status:
+            </p>
+          </div>
+          <div class="order-card-body">
+            <div style="display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 2rem;">
+              ${orders.map(o => `
+                <div style="padding: 1.1rem; border-radius: var(--radius-md); background: var(--bg-card-subtle); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="font-size: 1.1rem; font-weight: 800; color: var(--color-text-primary);">${o.orderNumber}</div>
+                    <div style="font-size: 0.82rem; color: var(--color-text-muted); margin-top: 2px;">
+                      ${o.orderType === 'DINE_IN' ? `🍽️ Table ${o.tableNumber}` : '🛍️ Takeaway'} &bull; ${new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div style="font-size: 0.9rem; font-weight: 750; color: var(--color-accent-ochre); margin-top: 4px;">
+                      ₹${o.total} (${o.paymentMethod === 'UPI' ? 'UPI Online' : 'Pay at Counter'})
+                    </div>
+                  </div>
+                  <a href="/order.html?orderNumber=${o.orderNumber}" class="btn btn-primary btn-sm" style="text-decoration: none;">
+                    Live Status &rarr;
+                  </a>
+                </div>
+              `).join('')}
+            </div>
+            <div style="text-align: center;">
+              <a href="/#menu" class="btn btn-secondary btn-sm">&larr; Back to Menu</a>
+            </div>
+          </div>
+        `;
+      }
     }
 
     async function fetchOrderDetails() {
@@ -409,7 +471,7 @@
         el.classList.toggle('is-active', idx === currentIndex);
       });
 
-      // 3. Dining Mode & Payment
+      // 3. Dining Mode & Payment Badge
       const diningEl = document.getElementById('order-dining-type');
       if (diningEl) {
         diningEl.textContent = order.orderType === 'DINE_IN' 
@@ -420,23 +482,138 @@
       const payEl = document.getElementById('order-payment-badge');
       if (payEl) {
         if (order.paymentStatus === 'PAID') {
-          payEl.innerHTML = '<span style="color: var(--color-veg);">✓ PAID (' + order.paymentMethod + ')</span>';
+          payEl.innerHTML = '<span style="color: var(--color-veg); font-weight: 800;">✓ PAID (' + order.paymentMethod + ')</span>';
+        } else if (order.paymentMethod === 'UPI') {
+          payEl.innerHTML = '<span style="color: #c97a14; font-weight: 800;">⏳ PENDING (UPI Staff Verification)</span>';
         } else {
-          payEl.innerHTML = '<span style="color: #c97a14;">⏳ PENDING (Pay at Counter)</span>';
+          payEl.innerHTML = '<span style="color: #c97a14; font-weight: 800;">⏳ PENDING (Pay at Counter)</span>';
         }
       }
 
-      // 4. Instructions
+      // 4. Instructions Box
       const instEl = document.getElementById('order-instructions');
       if (instEl) {
-        if (order.orderType === 'DINE_IN') {
-          instEl.textContent = `You are seated at Table ${order.tableNumber}. Our team will bring your order to your table shortly.`;
+        if (order.paymentStatus === 'PAID') {
+          instEl.textContent = order.orderType === 'DINE_IN'
+            ? `You are seated at Table ${order.tableNumber}. Your payment is confirmed. Our barista team will bring your items to you shortly.`
+            : 'Your payment is confirmed. Please pick up your items at the front counter when ready.';
+        } else if (order.paymentMethod === 'UPI') {
+          instEl.innerHTML = `
+            <strong>UPI Transfer Pending:</strong> Please transfer <strong>₹${order.total}</strong> to UPI ID <code>9182916879@ybl</code>.
+            Once our staff verifies the incoming payment on the counter terminal, your order will begin preparing.
+          `;
         } else {
-          instEl.textContent = 'Please wait near the pickup counter. When your order status turns "Ready", collect your package by showing this order number.';
+          instEl.innerHTML = `
+            <strong>Pay at Counter:</strong> Please visit the counter to settle <strong>₹${order.total}</strong> via Cash, Card or UPI with our cashier.
+          `;
         }
       }
 
-      // 5. Items Receipt
+      // 5. UPI Payment & UTR Submission Section (Only if UPI & Pending)
+      let upiBox = document.getElementById('live-upi-container');
+      if (order.paymentMethod === 'UPI' && order.paymentStatus !== 'PAID') {
+        if (!upiBox) {
+          upiBox = document.createElement('div');
+          upiBox.id = 'live-upi-container';
+          instEl.insertAdjacentElement('afterend', upiBox);
+        }
+
+        const payment = order.payment || {};
+        const vpa = payment.destinationVpa || '9182916879@ybl';
+        const upiUri = payment.upiUri || `upi://pay?pa=${vpa}&pn=Ochre%20Coffee%20Roasters&am=${order.total.toFixed(2)}&cu=INR&tr=${order.orderNumber}&tn=Order%20${order.orderNumber}`;
+
+        upiBox.innerHTML = `
+          <div style="background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 1.5rem; border: 1px solid var(--border-subtle); margin-bottom: 2rem; text-align: center;">
+            <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">
+              Direct UPI Payment
+            </div>
+            <div style="font-size: 1.8rem; font-weight: 850; color: var(--color-accent-ochre); margin-bottom: 1rem;">
+              ₹${order.total}
+            </div>
+
+            ${payment.qrDataUrl ? `
+              <div style="background: #fff; padding: 0.75rem; border-radius: 8px; display: inline-block; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
+                <img src="${payment.qrDataUrl}" alt="UPI QR Code" style="width: 180px; height: 180px; display: block;">
+              </div>
+            ` : ''}
+
+            <div style="font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 0.8rem;">
+              UPI ID: <strong style="color: var(--color-accent-ochre);">${vpa}</strong>
+            </div>
+
+            <a href="${upiUri}" class="btn btn-primary btn-sm" style="margin-bottom: 1.25rem; display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+              <span>📱</span><span>Open UPI App</span>
+            </a>
+
+            <!-- UTR Input Form -->
+            <div style="background: #ffffff; border-radius: 6px; padding: 1rem; border: 1px solid var(--border-subtle); text-align: left; max-width: 440px; margin: 0 auto;">
+              <div style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: 0.3rem;">
+                Already transferred? Submit 12-Digit UTR / Reference
+              </div>
+              <p style="font-size: 0.76rem; color: var(--color-text-muted); margin-bottom: 0.6rem;">
+                Entering your UPI transaction reference allows our staff to quickly verify your payment in bank records.
+              </p>
+
+              ${order.customerUtr ? `
+                <div style="padding: 0.5rem 0.75rem; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.82rem; font-weight: 700;">
+                  ✓ Submitted UTR: <code>${order.customerUtr}</code> (Pending Staff Approval)
+                </div>
+              ` : `
+                <form id="utr-submit-form" style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="utr-input" placeholder="e.g. 423589123456" maxlength="25" required style="flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); font-size: 0.85rem;">
+                  <button type="submit" class="btn btn-secondary btn-sm" id="btn-utr-submit">Submit</button>
+                </form>
+                <div id="utr-feedback" style="display: none; font-size: 0.78rem; margin-top: 0.4rem; font-weight: 600;"></div>
+              `}
+            </div>
+          </div>
+        `;
+
+        const utrForm = document.getElementById('utr-submit-form');
+        if (utrForm) {
+          utrForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const utrVal = (document.getElementById('utr-input')?.value || '').trim();
+            const feedback = document.getElementById('utr-feedback');
+            const btn = document.getElementById('btn-utr-submit');
+            if (!utrVal) return;
+
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            try {
+              const uRes = await fetch('/api/payments/submit-utr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderNumber: order.orderNumber, utr: utrVal })
+              });
+              const uJson = await uRes.json();
+              if (uJson.success) {
+                feedback.style.display = 'block';
+                feedback.style.color = '#2e7d32';
+                feedback.textContent = '✓ UTR reference submitted! Staff is matching your payment.';
+                fetchOrderDetails();
+              } else {
+                feedback.style.display = 'block';
+                feedback.style.color = '#c62828';
+                feedback.textContent = uJson.error?.message || 'Failed to submit UTR.';
+                btn.disabled = false;
+                btn.textContent = 'Submit';
+              }
+            } catch (err) {
+              feedback.style.display = 'block';
+              feedback.style.color = '#c62828';
+              feedback.textContent = 'Network error. Please try again.';
+              btn.disabled = false;
+              btn.textContent = 'Submit';
+            }
+          };
+        }
+      } else if (upiBox) {
+        upiBox.remove();
+      }
+
+      // 6. Items Receipt
       const receiptContainer = document.getElementById('receipt-items-container');
       const totalVal = document.getElementById('receipt-total-val');
 

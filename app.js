@@ -722,10 +722,14 @@ function initCheckoutFlow() {
     const notes = (document.getElementById('checkout-notes')?.value || '').trim();
 
     nextBtn.disabled = true;
-    nextBtn.innerHTML = `<span>Processing Order...</span>`;
+    nextBtn.innerHTML = `<span>Placing Order...</span>`;
 
     try {
-      // 1. Submit Order to Server
+      // Client-side idempotency key prevents duplicate orders on rapid clicks or network retries
+      if (!window._currentCheckoutIdempotencyKey) {
+        window._currentCheckoutIdempotencyKey = 'idemp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+      }
+
       const orderPayload = {
         customerName,
         customerPhone,
@@ -733,9 +737,11 @@ function initCheckoutFlow() {
         tableNumber: orderType === 'DINE_IN' ? selectedTableNumber : null,
         paymentMethod,
         notes,
-        items
+        items,
+        idempotencyKey: window._currentCheckoutIdempotencyKey
       };
 
+      // Single fast server round-trip: validates cart, calculates totals, creates order & payment payload
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -749,183 +755,215 @@ function initCheckoutFlow() {
           errorMsg.textContent = json.error?.message || 'Failed to create order.';
           errorMsg.style.display = 'block';
         }
-        showToast(json.error?.message || 'Order failed.', 'error');
+        showToast(json.error?.message || 'Order failed. Please try again.', 'error');
         nextBtn.disabled = false;
         nextBtn.innerHTML = `<span>Try Again</span>`;
         return;
       }
 
       const orderData = json.data;
+      window._currentCheckoutIdempotencyKey = null; // Reset key after successful order
 
-      // 2. Handle Payment Method
+      // Save genuine placed order to customer's browser session history
+      saveCustomerOrder({
+        orderNumber: orderData.orderNumber,
+        orderType: orderData.orderType,
+        tableNumber: orderData.tableNumber,
+        total: orderData.total,
+        paymentMethod: orderData.paymentMethod,
+        createdAt: new Date().toISOString()
+      });
+
+      // Handle Pay at Counter
       if (paymentMethod === 'COUNTER') {
         OchreCart.clearCart();
+        closeCheckoutModal();
         showToast(`Order ${orderData.orderNumber} placed successfully!`, 'success');
         window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
         return;
       }
 
-      // 3. Handle UPI / Razorpay Payment
+      // Handle Real Direct UPI Flow
       if (paymentMethod === 'UPI') {
-        const payRes = await fetch('/api/payments/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderNumber: orderData.orderNumber })
-        });
-
-        const payJson = await payRes.json();
-        if (!payJson.success) {
-          showToast(payJson.error?.message || 'Failed to initiate payment gateway.', 'error');
-          nextBtn.disabled = false;
-          return;
-        }
-
-        const payData = payJson.data;
-
-        // Check if Simulation Mode is active
-        if (payData.isSimulated || typeof Razorpay === 'undefined') {
-          // Sandbox test simulation flow
-          showSimulationPaymentModal(orderData, payData);
-        } else {
-          // Official Razorpay Standard Checkout
-          const options = {
-            key: payData.keyId,
-            amount: payData.amount,
-            currency: 'INR',
-            name: 'Ochre Coffee Roasters',
-            description: `Order #${orderData.orderNumber}`,
-            image: 'https://money-iota-woad.vercel.app/assets/hero_cafe.jpg',
-            order_id: payData.razorpayOrderId,
-            prefill: {
-              name: customerName,
-              contact: customerPhone
-            },
-            notes: {
-              orderNumber: orderData.orderNumber,
-              destinationVpa: payData.destinationVpa
-            },
-            theme: { color: '#b85d39' },
-            config: {
-              display: {
-                blocks: {
-                  upi: {
-                    name: 'Pay using UPI',
-                    instruments: [{ method: 'upi' }]
-                  }
-                },
-                sequence: ['block.upi']
-              }
-            },
-            handler: async function (response) {
-              // Verify payment on server
-              const vRes = await fetch('/api/payments/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderNumber: orderData.orderNumber,
-                  razorpayOrderId: response.razorpay_order_id,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  razorpaySignature: response.razorpay_signature
-                })
-              });
-              const vJson = await vRes.json();
-              if (vJson.success) {
-                OchreCart.clearCart();
-                window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
-              } else {
-                showToast(vJson.error?.message || 'Payment verification failed.', 'error');
-                nextBtn.disabled = false;
-              }
-            },
-            modal: {
-              ondismiss: function () {
-                showToast('Payment window was closed. Your cart remains saved.', 'info');
-                nextBtn.disabled = false;
-                nextBtn.innerHTML = `<span>Pay ₹${OchreCart.getSubtotal()} via UPI</span>`;
-              }
-            }
-          };
-
-          const rzpInstance = new Razorpay(options);
-          rzpInstance.open();
-        }
+        OchreCart.clearCart();
+        closeCheckoutModal();
+        showRealUpiModal(orderData);
       }
     } catch (err) {
       console.error('Submission error:', err);
-      showToast('Network error during checkout. Please try again.', 'error');
+      showToast('Something went wrong. Your order was not duplicated. Please try again.', 'error');
       nextBtn.disabled = false;
       nextBtn.innerHTML = `<span>Try Again</span>`;
     }
   }
 
-  // Developer Simulation Payment Modal for Test Environments
-  function showSimulationPaymentModal(orderData, payData) {
-    const simModal = document.createElement('div');
-    simModal.className = 'checkout-modal-overlay is-open';
-    simModal.style.zIndex = '1200';
-    simModal.innerHTML = `
-      <div class="checkout-modal" style="max-width: 460px; text-align: center; padding: 2rem;">
-        <div style="font-size: 2.8rem; margin-bottom: 0.75rem;">⚡</div>
-        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.4rem;">UPI Gateway Simulator</h3>
-        <p style="font-size: 0.86rem; color: var(--color-text-secondary); margin-bottom: 1.2rem;">
-          Order <strong>#${orderData.orderNumber}</strong> · Amount: <strong>₹${orderData.total}</strong><br>
-          Target VPA: <strong>${payData.destinationVpa}</strong>
-        </p>
+  // Real UPI Modal with dynamic server-generated QR, VPA 9182916879@ybl, and mobile UPI intent
+  function showRealUpiModal(orderData) {
+    const upiModal = document.getElementById('upi-modal-overlay');
+    const modalBody = document.getElementById('upi-modal-body');
+    const closeBtn = document.getElementById('upi-modal-close');
+    if (!upiModal || !modalBody) {
+      window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
+      return;
+    }
 
-        <div style="background: var(--bg-card-subtle); padding: 1rem; border-radius: var(--radius-md); font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: 1.5rem; text-align: left;">
-          <div>• Razorpay Order ID: <code>${payData.razorpayOrderId}</code></div>
-          <div>• Simulating payment callback with server-side HMAC signature verification.</div>
+    const payment = orderData.payment || {};
+    const vpa = payment.destinationVpa || '9182916879@ybl';
+    const amount = orderData.total;
+    const upiUri = payment.upiUri || `upi://pay?pa=${vpa}&pn=Ochre%20Coffee%20Roasters&am=${amount.toFixed(2)}&cu=INR&tr=${orderData.orderNumber}&tn=Order%20${orderData.orderNumber}`;
+
+    modalBody.innerHTML = `
+      <div style="margin-bottom: 1.25rem;">
+        <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.25rem;">
+          Order #${orderData.orderNumber}
         </div>
-
-        <div style="display: flex; gap: 0.8rem; justify-content: center;">
-          <button class="btn btn-secondary btn-sm" id="sim-cancel-btn">Cancel</button>
-          <button class="btn btn-primary btn-sm" id="sim-pay-btn">Approve &amp; Pay ₹${orderData.total}</button>
+        <div style="font-size: 2rem; font-weight: 850; color: var(--color-accent-ochre);">
+          ₹${amount}
+        </div>
+        <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 0.2rem;">
+          ${orderData.orderType === 'DINE_IN' ? `Table ${orderData.tableNumber}` : 'Takeaway Order'}
         </div>
       </div>
+
+      <!-- Real QR Code -->
+      <div style="background: #ffffff; padding: 1rem; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(0,0,0,0.06); display: inline-block; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
+        ${payment.qrDataUrl ? `
+          <img src="${payment.qrDataUrl}" alt="UPI QR Code for ₹${amount}" style="width: 220px; height: 220px; display: block; margin: 0 auto;">
+        ` : `
+          <div style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; color: var(--color-text-muted);">
+            Scan via any UPI App
+          </div>
+        `}
+      </div>
+
+      <!-- Copyable UPI ID Box -->
+      <div style="background: var(--bg-card-subtle); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+        <div style="text-align: left;">
+          <div style="font-size: 0.72rem; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700;">Destination UPI ID</div>
+          <div style="font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);" id="upi-vpa-text">${vpa}</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-vpa" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">Copy</button>
+      </div>
+
+      <!-- Mobile UPI Intent Deep Link -->
+      <a href="${upiUri}" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+        <span>📱</span>
+        <span>Open UPI App (GPay, PhonePe, Paytm)</span>
+      </a>
+
+      <!-- Honest Verification Notice -->
+      <div style="background: #fdf6ec; border-left: 3px solid #e6a23c; padding: 0.75rem; border-radius: 4px; font-size: 0.78rem; color: #8a6d3b; text-align: left; margin-bottom: 1.25rem; line-height: 1.45;">
+        <strong>Payment Status: Pending Staff Confirmation</strong><br>
+        Direct UPI does not instantly confirm funds to the website. After paying, tap <em>Track Order</em> below. Our barista verifies payment at the counter and begins your order.
+      </div>
+
+      <a href="/order.html?orderNumber=${orderData.orderNumber}" class="btn btn-secondary" style="width: 100%; text-decoration: none; display: block; padding: 0.7rem;">
+        Track Live Order Progress &rarr;
+      </a>
     `;
-    document.body.appendChild(simModal);
 
-    document.getElementById('sim-cancel-btn').addEventListener('click', () => {
-      simModal.remove();
-      nextBtn.disabled = false;
-      nextBtn.innerHTML = `<span>Pay ₹${orderData.total} via UPI</span>`;
-      showToast('UPI payment was cancelled.', 'info');
-    });
+    upiModal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
 
-    document.getElementById('sim-pay-btn').addEventListener('click', async () => {
-      const simPayBtn = document.getElementById('sim-pay-btn');
-      simPayBtn.disabled = true;
-      simPayBtn.textContent = 'Verifying...';
-
-      const mockPaymentId = 'pay_sim_' + Math.random().toString(36).slice(2, 12);
-      
-      // Calculate valid simulated signature
-      // Using standard client-side hashing simulation for test mode
-      const raw = payData.razorpayOrderId + '|' + mockPaymentId;
-      // Fetch server verification endpoint
-      const vRes = await fetch('/api/payments/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderNumber: orderData.orderNumber,
-          razorpayOrderId: payData.razorpayOrderId,
-          razorpayPaymentId: mockPaymentId,
-          razorpaySignature: 'sim_verified_sig' // Server simulation helper accepts this
-        })
+    // Copy VPA helper
+    document.getElementById('btn-copy-vpa')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(vpa).then(() => {
+        showToast('UPI ID copied: ' + vpa, 'success');
+      }).catch(() => {
+        showToast('UPI ID: ' + vpa, 'info');
       });
-
-      const vJson = await vRes.json();
-      if (vJson.success) {
-        simModal.remove();
-        OchreCart.clearCart();
-        window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
-      } else {
-        showToast(vJson.error?.message || 'Verification failed.', 'error');
-        simModal.remove();
-        nextBtn.disabled = false;
-      }
     });
+
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        upiModal.classList.remove('is-open');
+        document.body.style.overflow = '';
+        window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
+      };
+    }
   }
+}
+
+/**
+ * Customer Genuine Orders Management (Local Session)
+ */
+function getCustomerOrders() {
+  try {
+    return JSON.parse(localStorage.getItem('ochre_customer_orders') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCustomerOrder(order) {
+  const list = getCustomerOrders().filter(o => o.orderNumber !== order.orderNumber);
+  list.unshift(order);
+  localStorage.setItem('ochre_customer_orders', JSON.stringify(list.slice(0, 20)));
+}
+
+function openOrdersModal() {
+  const modal = document.getElementById('orders-modal-overlay');
+  const body = document.getElementById('customer-orders-body');
+  const closeBtn = document.getElementById('orders-modal-close');
+  if (!modal || !body) return;
+
+  const orders = getCustomerOrders();
+
+  if (orders.length === 0) {
+    body.innerHTML = `
+      <div style="text-align: center; padding: 3rem 1.5rem; color: var(--color-text-muted);">
+        <div style="font-size: 2.5rem; margin-bottom: 0.6rem;">☕</div>
+        <h4 style="font-size: 1.2rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: 0.4rem;">No orders yet</h4>
+        <p style="font-size: 0.88rem; max-width: 320px; margin: 0 auto 1.5rem; line-height: 1.5;">
+          You haven't placed any orders yet. Discover our fresh single-origin brews, iced coolers, and bakery treats.
+        </p>
+        <button class="btn btn-primary btn-sm" onclick="closeOrdersModal(); location.href='#menu';">Explore Menu</button>
+      </div>
+    `;
+  } else {
+    body.innerHTML = `
+      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 1.2rem;">
+        Showing your genuine orders placed on this device:
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+        ${orders.map(o => `
+          <div style="padding: 1rem 1.2rem; border-radius: var(--radius-md); background: var(--bg-card-subtle); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-weight: 800; font-size: 1.05rem; color: var(--color-text-primary);">${o.orderNumber}</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 2px;">
+                ${o.orderType === 'DINE_IN' ? `🍽️ Table ${o.tableNumber}` : '🛍️ Takeaway'} · ${new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-accent-ochre); margin-top: 4px;">
+                ₹${o.total} (${o.paymentMethod === 'UPI' ? 'Online UPI' : 'Pay at Counter'})
+              </div>
+            </div>
+            <a href="/order.html?orderNumber=${o.orderNumber}" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; text-decoration: none;">
+              Track Status &rarr;
+            </a>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  modal.classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+
+  if (closeBtn) {
+    closeBtn.onclick = closeOrdersModal;
+  }
+}
+
+function closeOrdersModal() {
+  const modal = document.getElementById('orders-modal-overlay');
+  if (modal) {
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+}
+
+window.openOrdersModal = openOrdersModal;
+window.closeOrdersModal = closeOrdersModal;
 }
 
 function openCheckoutModal() {
@@ -983,6 +1021,18 @@ function initNavbar() {
         if (mobileDrawer.classList.contains('is-open')) closeMobileMenu();
       });
     });
+
+    const navOrdersBtn = document.getElementById('nav-orders-btn');
+    const mobileOrdersLink = document.getElementById('mobile-orders-link');
+    if (navOrdersBtn) {
+      navOrdersBtn.addEventListener('click', openOrdersModal);
+    }
+    if (mobileOrdersLink) {
+      mobileOrdersLink.addEventListener('click', () => {
+        closeMobileMenu();
+        openOrdersModal();
+      });
+    }
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && mobileDrawer.classList.contains('is-open')) {

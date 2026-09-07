@@ -7,6 +7,7 @@
     "dev": "node server.js",
     "start": "node server.js",
     "seed": "node db/seed.js",
+    "reset:orders": "node db/reset-orders.js",
     "test": "node tests/test-runner.js"
   },
   "dependencies": {
@@ -17,9 +18,17 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
+    "qrcode": "^1.5.4",
     "razorpay": "^2.9.5"
   },
-  "keywords": ["coffee", "restaurant-ordering", "cafe", "razorpay", "upi", "admin-dashboard"],
+  "keywords": [
+    "coffee",
+    "restaurant-ordering",
+    "cafe",
+    "razorpay",
+    "upi",
+    "admin-dashboard"
+  ],
   "author": "Ochre Coffee Roasters",
   "license": "ISC"
 }
