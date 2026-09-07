@@ -191,29 +191,43 @@ const OchreCart = (() => {
       }
     }
 
-    // 4. Update Product Cards in Menu Grid & Favorites
+    // 4. Update Product Cards in Menu Grid & Favorites in exact synchronization
     document.querySelectorAll('[data-product-id]').forEach(elem => {
       const pId = elem.getAttribute('data-product-id');
       const cartItem = getItem(pId);
       const actionWrap = elem.querySelector('.item-card-action');
       if (actionWrap && !actionWrap.classList.contains('unavailable-action')) {
+        const isFavorite = elem.classList.contains('favorite-card');
         if (cartItem && cartItem.quantity > 0) {
           actionWrap.innerHTML = `
-            <div class="qty-stepper">
+            <div class="qty-stepper" ${isFavorite ? 'style="width: 100%; justify-content: space-between; padding: 0.35rem 0.75rem; min-height: 44px;"' : ''}>
               <button class="qty-btn" onclick="OchreCart.updateQuantity('${pId}', -1)" aria-label="Decrease quantity">−</button>
-              <span class="qty-val">${cartItem.quantity}</span>
+              <span class="qty-val" ${isFavorite ? 'style="font-size: 1.05rem;"' : ''}>${cartItem.quantity}</span>
               <button class="qty-btn" onclick="OchreCart.updateQuantity('${pId}', 1)" aria-label="Increase quantity">+</button>
             </div>
           `;
         } else {
-          actionWrap.innerHTML = `
-            <button class="btn-add-to-cart" onclick="handleAddToCartClick('${pId}')">
-              <span>+ Add</span>
-            </button>
-          `;
+          if (isFavorite) {
+            actionWrap.innerHTML = `
+              <button class="btn btn-primary btn-sm" style="width: 100%; min-height: 44px;" onclick="handleAddToCartClick('${pId}')">
+                <span>+ Add to Cart</span>
+              </button>
+            `;
+          } else {
+            actionWrap.innerHTML = `
+              <button class="btn-add-to-cart" onclick="handleAddToCartClick('${pId}')">
+                <span>+ Add</span>
+              </button>
+            `;
+          }
         }
       }
     });
+  }
+
+  function reloadFromStorage() {
+    cart = getSavedCart();
+    renderAll();
   }
 
   return {
@@ -225,7 +239,8 @@ const OchreCart = (() => {
     clearCart,
     getCount,
     getSubtotal,
-    renderAll
+    renderAll,
+    reloadFromStorage
   };
 })();
 
@@ -236,23 +251,23 @@ window.OchreCart = OchreCart;
  * Global product lookup map loaded from backend (pre-seeded for zero-latency clicks)
  */
 const FALLBACK_PRODUCTS = [
-  { id: 'prod_caramel_latte', name: 'Caramel Latte', price: 189, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Chikmagalur Washed Lot' },
-  { id: 'prod_hazelnut_mocha', name: 'Hazelnut Mocha', price: 199, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Dark Roast · Velvety' },
-  { id: 'prod_spanish_cold_brew', name: 'Spanish Cold Brew', price: 199, category_id: 'cat_coffee', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Signature Cold Pour' },
-  { id: 'prod_oat_milk_cappuccino', name: 'Oat Milk Cappuccino', price: 189, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Dairy-Free · Gentle Roast' },
-  { id: 'prod_vanilla_cinnamon_latte', name: 'Vanilla Cinnamon Latte', price: 199, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Spiced & Comforting' },
-  { id: 'prod_pour_over_v60', name: 'Single-Origin Pour Over (V60)', price: 210, category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Araku Valley Micro-lot · Light Roast' },
-  { id: 'prod_iced_matcha_latte', name: 'Iced Matcha Latte', price: 199, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Antioxidant Rich · Stone Ground' },
-  { id: 'prod_blueberry_lemonade', name: 'Blueberry Lemonade', price: 179, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Tangy, Fruity & Refreshing' },
-  { id: 'prod_watermelon_cooler', name: 'Watermelon Cooler', price: 169, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Hydrating · Pure Juice' },
-  { id: 'prod_peach_iced_tea', name: 'Peach Iced Tea', price: 169, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Light & Perfectly Chilled' },
-  { id: 'prod_espresso_tonic', name: 'Cold Brew Espresso Tonic', price: 185, category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Effervescent · Citrusy' },
-  { id: 'prod_masala_chai_pot', name: 'Estate Masala Chai Pot', price: 140, category_id: 'cat_tea', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Served in Clay Kulhad Pot' },
-  { id: 'prod_hibiscus_rose_tisane', name: 'Hibiscus Rose Tisane', price: 150, category_id: 'cat_tea', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Floral & Tart' },
-  { id: 'prod_grilled_cheese', name: 'Grilled Cheese Sandwich', price: 149, category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'With Garlic Herb Dip' },
-  { id: 'prod_paneer_tikka_wrap', name: 'Paneer Tikka Wrap', price: 169, category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Spicy, Wholesome & Satisfying' },
-  { id: 'prod_peri_peri_fries', name: 'Crispy Peri Peri Fries', price: 129, category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Served in Ceramic Cup' },
-  { id: 'prod_chocolate_brownie', name: 'Fudgy Chocolate Brownie', price: 99, category_id: 'cat_dessert', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Melts in Your Mouth' }
+  { id: 'prod_caramel_latte', name: 'Caramel Latte', price: 189, imageUrl: 'assets/coffee_mug.png', image_url: 'assets/coffee_mug.png', category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Chikmagalur Washed Lot' },
+  { id: 'prod_hazelnut_mocha', name: 'Hazelnut Mocha', price: 199, imageUrl: 'assets/coffee_mug.png', image_url: 'assets/coffee_mug.png', category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Dark Roast · Velvety' },
+  { id: 'prod_spanish_cold_brew', name: 'Spanish Cold Brew', price: 199, imageUrl: 'assets/iced_coffee.png', image_url: 'assets/iced_coffee.png', category_id: 'cat_coffee', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Signature Cold Pour' },
+  { id: 'prod_oat_milk_cappuccino', name: 'Oat Milk Cappuccino', price: 189, imageUrl: 'assets/coffee_mug.png', image_url: 'assets/coffee_mug.png', category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Dairy-Free · Gentle Roast' },
+  { id: 'prod_vanilla_cinnamon_latte', name: 'Vanilla Cinnamon Latte', price: 199, imageUrl: 'assets/coffee_mug.png', image_url: 'assets/coffee_mug.png', category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Spiced & Comforting' },
+  { id: 'prod_pour_over_v60', name: 'Single-Origin Pour Over (V60)', price: 210, imageUrl: 'assets/gallery_pourover.jpg', image_url: 'assets/gallery_pourover.jpg', category_id: 'cat_coffee', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Araku Valley Micro-lot · Light Roast' },
+  { id: 'prod_iced_matcha_latte', name: 'Iced Matcha Latte', price: 199, imageUrl: 'assets/matcha_cooler.png', image_url: 'assets/matcha_cooler.png', category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Antioxidant Rich · Stone Ground' },
+  { id: 'prod_blueberry_lemonade', name: 'Blueberry Lemonade', price: 179, imageUrl: 'assets/matcha_cooler.png', image_url: 'assets/matcha_cooler.png', category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Tangy, Fruity & Refreshing' },
+  { id: 'prod_watermelon_cooler', name: 'Watermelon Cooler', price: 169, imageUrl: 'assets/matcha_cooler.png', image_url: 'assets/matcha_cooler.png', category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Hydrating · Pure Juice' },
+  { id: 'prod_peach_iced_tea', name: 'Peach Iced Tea', price: 169, imageUrl: 'assets/iced_coffee.png', image_url: 'assets/iced_coffee.png', category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Light & Perfectly Chilled' },
+  { id: 'prod_espresso_tonic', name: 'Cold Brew Espresso Tonic', price: 185, imageUrl: 'assets/iced_coffee.png', image_url: 'assets/iced_coffee.png', category_id: 'cat_cold', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Effervescent · Citrusy' },
+  { id: 'prod_masala_chai_pot', name: 'Estate Masala Chai Pot', price: 140, imageUrl: 'assets/coffee_mug.png', image_url: 'assets/coffee_mug.png', category_id: 'cat_tea', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Served in Clay Kulhad Pot' },
+  { id: 'prod_hibiscus_rose_tisane', name: 'Hibiscus Rose Tisane', price: 150, imageUrl: 'assets/matcha_cooler.png', image_url: 'assets/matcha_cooler.png', category_id: 'cat_tea', is_veg: 1, is_cold: 1, available: 1, origin_tag: 'Floral & Tart' },
+  { id: 'prod_grilled_cheese', name: 'Grilled Cheese Sandwich', price: 149, imageUrl: 'assets/sandwich_fries.png', image_url: 'assets/sandwich_fries.png', category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'With Garlic Herb Dip' },
+  { id: 'prod_paneer_tikka_wrap', name: 'Paneer Tikka Wrap', price: 169, imageUrl: 'assets/sandwich_fries.png', image_url: 'assets/sandwich_fries.png', category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Spicy, Wholesome & Satisfying' },
+  { id: 'prod_peri_peri_fries', name: 'Crispy Peri Peri Fries', price: 129, imageUrl: 'assets/sandwich_fries.png', image_url: 'assets/sandwich_fries.png', category_id: 'cat_food', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Served in Ceramic Cup' },
+  { id: 'prod_chocolate_brownie', name: 'Fudgy Chocolate Brownie', price: 99, imageUrl: 'assets/gallery_pastry.jpg', image_url: 'assets/gallery_pastry.jpg', category_id: 'cat_dessert', is_veg: 1, is_cold: 0, available: 1, origin_tag: 'Melts in Your Mouth' }
 ];
 
 let menuProductsMap = {};
@@ -353,10 +368,13 @@ async function initDynamicMenuAndCart() {
 
   // Setup Multi-Step Checkout Modal
   initCheckoutFlow();
+
+  // Setup Real-Time Sync (Cross-Tab Storage + Live Polling)
+  initSyncListeners();
 }
 
 /**
- * Renders product cards into #menu-grid
+ * Renders product cards into #menu-grid with proper, small reference thumbnail images
  */
 function renderMenuCards(products) {
   const menuGrid = document.getElementById('menu-grid');
@@ -365,6 +383,7 @@ function renderMenuCards(products) {
   menuGrid.innerHTML = products.map(prod => {
     const isAvailable = Boolean(prod.available);
     const cartItem = OchreCart.getItem(prod.id);
+    const thumbUrl = prod.image_url || prod.imageUrl || 'assets/coffee_mug.png';
 
     return `
       <article class="menu-item-card ${!isAvailable ? 'is-unavailable' : ''}"
@@ -372,38 +391,45 @@ function renderMenuCards(products) {
                data-veg="${prod.is_veg === 1}"
                data-cold="${prod.is_cold === 1}"
                data-product-id="${prod.id}">
-        <div class="item-card-header">
-          <div class="item-name-group">
-            <h3 class="item-card-title">${prod.name}</h3>
-            ${prod.is_cold ? '<span class="pill-tag tag-cold">COLD</span>' : ''}
-            ${prod.is_veg ? '<span class="veg-icon-dot" title="Vegetarian"></span>' : ''}
+        <div class="item-card-content">
+          <div class="item-card-header">
+            <div class="item-name-group">
+              <h3 class="item-card-title">${prod.name}</h3>
+              ${prod.is_cold ? '<span class="pill-tag tag-cold">COLD</span>' : ''}
+              ${prod.is_veg ? '<span class="veg-icon-dot" title="Vegetarian"></span>' : ''}
+            </div>
+            <span class="item-card-price">&#8377;${prod.price}</span>
           </div>
-          <span class="item-card-price">&#8377;${prod.price}</span>
+
+          <p class="item-card-desc">${prod.description || ''}</p>
+
+          <div class="item-card-footer">
+            ${prod.origin_tag ? `<span class="tag-origin">${prod.origin_tag}</span>` : '<span></span>'}
+          </div>
         </div>
 
-        <p class="item-card-desc">${prod.description || ''}</p>
-
-        <div class="item-card-footer">
-          ${prod.origin_tag ? `<span class="tag-origin">${prod.origin_tag}</span>` : '<span></span>'}
-        </div>
-
-        <div class="item-card-action ${!isAvailable ? 'unavailable-action' : ''}">
-          ${!isAvailable 
-            ? '<span class="badge-unavailable">Currently Unavailable</span>'
-            : cartItem && cartItem.quantity > 0
-              ? `
-                <div class="qty-stepper">
-                  <button class="qty-btn" onclick="OchreCart.updateQuantity('${prod.id}', -1)" aria-label="Decrease quantity">−</button>
-                  <span class="qty-val">${cartItem.quantity}</span>
-                  <button class="qty-btn" onclick="OchreCart.updateQuantity('${prod.id}', 1)" aria-label="Increase quantity">+</button>
-                </div>
-              `
-              : `
-                <button class="btn-add-to-cart" onclick="handleAddToCartClick('${prod.id}')">
-                  <span>+ Add</span>
-                </button>
-              `
-          }
+        <div class="item-card-media">
+          <div class="item-card-thumb-box">
+            <img src="${thumbUrl}" alt="${prod.name}" class="item-card-thumb" loading="lazy">
+          </div>
+          <div class="item-card-action ${!isAvailable ? 'unavailable-action' : ''}">
+            ${!isAvailable 
+              ? '<span class="badge-unavailable">Unavailable</span>'
+              : cartItem && cartItem.quantity > 0
+                ? `
+                  <div class="qty-stepper">
+                    <button class="qty-btn" onclick="OchreCart.updateQuantity('${prod.id}', -1)" aria-label="Decrease quantity">−</button>
+                    <span class="qty-val">${cartItem.quantity}</span>
+                    <button class="qty-btn" onclick="OchreCart.updateQuantity('${prod.id}', 1)" aria-label="Increase quantity">+</button>
+                  </div>
+                `
+                : `
+                  <button class="btn-add-to-cart" onclick="handleAddToCartClick('${prod.id}')">
+                    <span>+ Add</span>
+                  </button>
+                `
+            }
+          </div>
         </div>
       </article>
     `;
@@ -450,21 +476,78 @@ function connectFavoritesCards() {
         const cartItem = OchreCart.getItem(m.id);
         if (cartItem && cartItem.quantity > 0) {
           actionWrap.innerHTML = `
-            <div class="qty-stepper">
+            <div class="qty-stepper" style="width: 100%; justify-content: space-between; padding: 0.35rem 0.75rem; min-height: 44px;">
               <button class="qty-btn" onclick="OchreCart.updateQuantity('${m.id}', -1)" aria-label="Decrease quantity">−</button>
-              <span class="qty-val">${cartItem.quantity}</span>
+              <span class="qty-val" style="font-size: 1.05rem;">${cartItem.quantity}</span>
               <button class="qty-btn" onclick="OchreCart.updateQuantity('${m.id}', 1)" aria-label="Increase quantity">+</button>
             </div>
           `;
         } else {
           actionWrap.innerHTML = `
-            <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="handleAddToCartClick('${m.id}')">
+            <button class="btn btn-primary btn-sm" style="width: 100%; min-height: 44px;" onclick="handleAddToCartClick('${m.id}')">
               <span>+ Add to Cart</span>
             </button>
           `;
         }
       }
     }
+  });
+}
+
+/**
+ * Real-time synchronization controller
+ */
+function initSyncListeners() {
+  // 1. Multi-tab synchronization
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'ochre_cart') {
+      OchreCart.reloadFromStorage();
+    }
+    if (e.key === 'ochre_customer_orders') {
+      const modal = document.getElementById('orders-modal-overlay');
+      if (modal && modal.classList.contains('is-open')) {
+        openOrdersModal();
+      }
+    }
+  });
+
+  // 2. Background live menu availability & price sync
+  let isSyncing = false;
+  async function syncLiveMenu() {
+    if (isSyncing || document.hidden) return;
+    isSyncing = true;
+    try {
+      const res = await fetch('/api/menu');
+      const json = await res.json();
+      if (json.success && json.data && json.data.products) {
+        let hasChanges = false;
+        json.data.products.forEach(p => {
+          const old = menuProductsMap[p.id];
+          if (!old || old.available !== p.available || old.price !== p.price) {
+            hasChanges = true;
+          }
+          menuProductsMap[p.id] = p;
+        });
+
+        if (hasChanges) {
+          renderMenuCards(json.data.products);
+          connectFavoritesCards();
+          OchreCart.renderAll();
+        }
+      }
+    } catch (e) {
+      // Quiet fail on network loss
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  // Poll every 6 seconds for admin catalog changes
+  setInterval(syncLiveMenu, 6000);
+
+  // Sync immediately when tab regains focus
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncLiveMenu();
   });
 }
 
