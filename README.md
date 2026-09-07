@@ -20,7 +20,7 @@ The live restaurant platform is deployed at **`https://money-iota-woad.vercel.ap
 
 ### Default Admin Credentials
 - **Email**: `owner@ochrecoffee.com`
-- **Password**: `ochreAdmin2026!`
+- **Password**: Configured via `ADMIN_PASSWORD` in `.env`
 
 ### Configured Payment & Settlement
 - **Destination UPI ID**: `9182916879@ybl`
@@ -124,9 +124,9 @@ RAZORPAY_WEBHOOK_SECRET=YourWebhookSecretHere
 UPI_MERCHANT_VPA=9182916879@ybl
 
 # Admin Authentication
-ADMIN_JWT_SECRET=super-secret-jwt-key-ochre-coffee-roasters-2026
+ADMIN_JWT_SECRET=your-secure-random-jwt-secret-here
 ADMIN_EMAIL=owner@ochrecoffee.com
-ADMIN_PASSWORD=ochreAdmin2026!
+ADMIN_PASSWORD=YourSecurePasswordHere
 ```
 
 ---

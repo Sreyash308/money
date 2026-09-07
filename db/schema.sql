@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS orders (
   razorpay_order_id TEXT,
   razorpay_payment_id TEXT,
   customer_utr TEXT,
+  order_token TEXT,
   idempotency_key TEXT UNIQUE,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL

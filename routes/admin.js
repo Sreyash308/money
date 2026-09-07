@@ -10,9 +10,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../db');
-const { requireAdmin } = require('../middleware/auth');
-
-const JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'super-secret-jwt-key-ochre-coffee-roasters-2026';
+const { requireAdmin, getJwtSecret } = require('../middleware/auth');
 
 // POST /api/admin/login - Admin Login
 router.post('/login', async (req, res) => {
@@ -43,7 +41,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, role: user.role },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 

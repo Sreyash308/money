@@ -254,7 +254,7 @@ async function runTests() {
   await test('Admin: Login and fetch orders queue with genuine data', async () => {
     const loginRes = await request('POST', '/api/admin/login', {
       email: 'owner@ochrecoffee.com',
-      password: 'ochreAdmin2026!'
+      password: process.env.ADMIN_PASSWORD || 'OchreCoffee#2026Secure'
     });
     if (loginRes.status !== 200) throw new Error(`Login failed, got ${loginRes.status}`);
     adminToken = loginRes.body.data.token;

@@ -1,9 +1,15 @@
-/**
- * Admin Authentication Middleware
- * Validates JWT token from Authorization header or HTTP-only cookie.
- */
-
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+
+function getJwtSecret() {
+  if (process.env.ADMIN_JWT_SECRET && process.env.ADMIN_JWT_SECRET.trim().length > 0) {
+    return process.env.ADMIN_JWT_SECRET.trim();
+  }
+  if (!global.__ochreAdminJwtSecret) {
+    global.__ochreAdminJwtSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return global.__ochreAdminJwtSecret;
+}
 
 function requireAdmin(req, res, next) {
   let token = null;
@@ -25,7 +31,7 @@ function requireAdmin(req, res, next) {
   }
 
   try {
-    const secret = process.env.ADMIN_JWT_SECRET || 'super-secret-jwt-key-ochre-coffee-roasters-2026';
+    const secret = getJwtSecret();
     const decoded = jwt.verify(token, secret);
     req.adminUser = decoded;
     next();
@@ -40,4 +46,4 @@ function requireAdmin(req, res, next) {
   }
 }
 
-module.exports = { requireAdmin };
+module.exports = { requireAdmin, getJwtSecret };

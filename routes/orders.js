@@ -272,22 +272,30 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 5. Generate Sequential Order Number (CAF-1001, CAF-1002...)
-    const lastOrder = await db.get(
-      "SELECT order_number FROM orders WHERE order_number LIKE 'CAF-%' ORDER BY created_at DESC LIMIT 1"
+    // 5. Generate Sequential Order Number Dynamically from Database
+    const recentOrders = await db.all(
+      "SELECT order_number FROM orders WHERE order_number LIKE 'CAF-%' ORDER BY created_at DESC LIMIT 50"
     );
-    let nextNum = 1001;
-    if (lastOrder && lastOrder.order_number) {
-      const match = lastOrder.order_number.match(/^CAF-(\d+)$/);
+    let maxNum = 1000;
+    for (const ord of recentOrders) {
+      const match = (ord.order_number || '').match(/^CAF-(\d+)$/);
       if (match) {
-        nextNum = parseInt(match[1], 10) + 1;
+        const val = parseInt(match[1], 10);
+        if (val > maxNum) maxNum = val;
       }
     }
-    const orderNumber = `CAF-${nextNum}`;
+    const orderNumber = `CAF-${maxNum + 1}`;
     const orderId = 'ord_' + crypto.randomUUID();
+    const orderToken = crypto.randomBytes(24).toString('hex');
     const now = new Date().toISOString();
     const cleanNotes = notes && typeof notes === 'string' ? notes.trim().slice(0, 300) : null;
     const cleanIdempotencyKey = idempotencyKey && typeof idempotencyKey === 'string' ? idempotencyKey.trim() : null;
+
+    // Configurable tax rate from settings (defaults to 0%)
+    const taxRow = await db.get("SELECT value FROM settings WHERE key = 'tax_rate_percent'");
+    const taxRate = taxRow ? parseFloat(taxRow.value) || 0 : 0;
+    const taxAmount = Math.round(calculatedTotal * (taxRate / 100));
+    const finalTotal = calculatedTotal + taxAmount;
 
     // 6. Insert Order & Order Items within a Transaction
     await db.transaction(async (tx) => {
@@ -295,8 +303,8 @@ router.post('/', async (req, res) => {
         `INSERT INTO orders (
           id, order_number, customer_name, customer_phone, order_type,
           table_id, table_number, status, payment_status, payment_method,
-          subtotal, tax, discount, total, notes, idempotency_key, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'RECEIVED', 'PAYMENT_PENDING', ?, ?, 0, 0, ?, ?, ?, ?, ?)`,
+          subtotal, tax, discount, total, notes, order_token, idempotency_key, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'RECEIVED', 'PAYMENT_PENDING', ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
         [
           orderId,
           orderNumber,
@@ -307,8 +315,10 @@ router.post('/', async (req, res) => {
           validTableNumber,
           normalizedMethod,
           calculatedTotal,
-          calculatedTotal,
+          taxAmount,
+          finalTotal,
           cleanNotes,
+          orderToken,
           cleanIdempotencyKey,
           now,
           now
@@ -402,13 +412,14 @@ router.post('/', async (req, res) => {
       data: {
         orderId,
         orderNumber,
+        orderToken,
         customerName: customerName.trim(),
         orderType,
         tableNumber: validTableNumber,
         paymentMethod: normalizedMethod,
         paymentStatus: 'PAYMENT_PENDING',
         status: 'RECEIVED',
-        total: calculatedTotal,
+        total: finalTotal,
         items: validatedItems.map(i => ({
           name: i.nameSnapshot,
           unitPrice: i.priceSnapshot,
@@ -430,40 +441,28 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/orders/history - Customer Order History (by comma-separated order numbers or phone)
+// GET /api/orders/history - Customer Order History (strictly scoped by device order numbers)
 router.get('/history', async (req, res) => {
   try {
-    const { orderNumbers, phone } = req.query;
+    const { orderNumbers } = req.query;
 
     let orders = [];
-    if (orderNumbers) {
+    if (orderNumbers && typeof orderNumbers === 'string') {
       const numbersList = orderNumbers
         .split(',')
         .map(n => n.trim().toUpperCase())
-        .filter(n => /^CAF-\d+$/.test(n));
+        .filter(n => /^CAF-\d+$/.test(n))
+        .slice(0, 20);
 
       if (numbersList.length > 0) {
         orders = await db.all(
-          `SELECT id, order_number, customer_name, order_type, table_number,
+          `SELECT order_number, order_type, table_number,
                   status, payment_status, payment_method, total, created_at
            FROM orders
            WHERE order_number IN (${numbersList.map(() => '?').join(',')})
            ORDER BY created_at DESC, order_number DESC
            LIMIT 20`,
           numbersList
-        );
-      }
-    } else if (phone) {
-      const cleanPhone = phone.toString().replace(/\D/g, '');
-      if (cleanPhone.length >= 10) {
-        orders = await db.all(
-          `SELECT id, order_number, customer_name, order_type, table_number,
-                  status, payment_status, payment_method, total, created_at
-           FROM orders
-           WHERE customer_phone = ?
-           ORDER BY created_at DESC, order_number DESC
-           LIMIT 20`,
-          [cleanPhone]
         );
       }
     }
@@ -481,14 +480,16 @@ router.get('/history', async (req, res) => {
   }
 });
 
-// GET /api/orders/:orderNumber - Customer Live Order Tracking
+// GET /api/orders/:orderNumber - Customer Live Order Tracking (Token protected for privacy)
 router.get('/:orderNumber', async (req, res) => {
   try {
     const { orderNumber } = req.params;
+    const clientToken = req.headers['x-order-token'] || req.query.token;
+
     const order = await db.get(
       `SELECT id, order_number, customer_name, order_type, table_number,
-              status, payment_status, payment_method, subtotal, total, notes,
-              customer_utr, razorpay_order_id, created_at
+              status, payment_status, payment_method, subtotal, tax, discount, total, notes,
+              customer_utr, razorpay_order_id, order_token, created_at
        FROM orders
        WHERE order_number = ?`,
       [orderNumber.toUpperCase()]
@@ -499,6 +500,20 @@ router.get('/:orderNumber', async (req, res) => {
         success: false,
         error: { code: 'ORDER_NOT_FOUND', message: 'Order not found.' }
       });
+    }
+
+    const isAuthorized = Boolean(
+      (order.order_token && clientToken && order.order_token === clientToken) ||
+      req.headers.authorization
+    );
+
+    // Privacy Masking: Protect customer identity from unauthorized enumeration
+    let safeCustomerName = 'Guest';
+    if (isAuthorized && order.customer_name) {
+      safeCustomerName = order.customer_name;
+    } else if (order.customer_name) {
+      const parts = order.customer_name.trim().split(/\s+/);
+      safeCustomerName = parts.map(p => p[0] + '***').join(' ');
     }
 
     const items = await db.all(
@@ -540,15 +555,16 @@ router.get('/:orderNumber', async (req, res) => {
       success: true,
       data: {
         orderNumber: order.order_number,
-        customerName: order.customer_name,
+        customerName: safeCustomerName,
         orderType: order.order_type,
         tableNumber: order.table_number,
         status: order.status,
         paymentStatus: order.payment_status,
         paymentMethod: order.payment_method,
         subtotal: order.subtotal,
+        tax: order.tax || 0,
         total: order.total,
-        notes: order.notes,
+        notes: isAuthorized ? order.notes : null,
         customerUtr: order.customer_utr,
         createdAt: order.created_at,
         items,

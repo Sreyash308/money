@@ -829,6 +829,7 @@ function initCheckoutFlow() {
       // Save genuine placed order to customer's browser session history
       saveCustomerOrder({
         orderNumber: orderData.orderNumber,
+        orderToken: orderData.orderToken,
         orderType: orderData.orderType,
         tableNumber: orderData.tableNumber,
         total: orderData.total,
@@ -841,7 +842,8 @@ function initCheckoutFlow() {
         OchreCart.clearCart();
         closeCheckoutModal();
         showToast(`Order ${orderData.orderNumber} placed successfully!`, 'success');
-        window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
+        const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+        window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
         return;
       }
 
@@ -851,7 +853,7 @@ function initCheckoutFlow() {
         closeCheckoutModal();
 
         const payment = orderData.payment || {};
-        if (payment.razorpayOrderId && typeof Razorpay !== 'undefined') {
+        if (payment.razorpayOrderId && payment.keyId && typeof Razorpay !== 'undefined') {
           launchRazorpayCheckout(orderData);
         } else {
           showRealUpiModal(orderData);
@@ -868,11 +870,16 @@ function initCheckoutFlow() {
   // Official Razorpay Standard Checkout (UPI Apps, QR, Cards, NetBanking)
   function launchRazorpayCheckout(orderData) {
     const payment = orderData.payment || {};
+    if (!payment.keyId || !payment.razorpayOrderId) {
+      showRealUpiModal(orderData);
+      return;
+    }
+
     const customerName = document.getElementById('checkout-name')?.value || orderData.customerName || 'Guest';
     const customerPhone = document.getElementById('checkout-phone')?.value || orderData.customerPhone || '';
 
     const options = {
-      key: payment.keyId || 'rzp_test_TZ7M8842SL8yiG',
+      key: payment.keyId,
       amount: payment.amount || Math.round(orderData.total * 100),
       currency: payment.currency || 'INR',
       name: 'Ochre Coffee Roasters',
@@ -1043,7 +1050,8 @@ function initCheckoutFlow() {
       closeBtn.onclick = () => {
         upiModal.classList.remove('is-open');
         document.body.style.overflow = '';
-        window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
+        const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+        window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
       };
     }
   }
@@ -1102,7 +1110,7 @@ function openOrdersModal() {
                 ₹${o.total} (${o.paymentMethod === 'UPI' ? 'Online UPI' : 'Pay at Counter'})
               </div>
             </div>
-            <a href="/order.html?orderNumber=${o.orderNumber}" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; text-decoration: none;">
+            <a href="/order.html?orderNumber=${o.orderNumber}${o.orderToken ? `&token=${o.orderToken}` : ''}" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; text-decoration: none;">
               Track Status &rarr;
             </a>
           </div>

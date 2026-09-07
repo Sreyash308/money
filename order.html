@@ -360,9 +360,10 @@
   </main>
 
   <script>
-    // Extract orderNumber from URL params or pathname
+    // Extract orderNumber & token from URL params or pathname
     const urlParams = new URLSearchParams(window.location.search);
     let orderNumber = urlParams.get('orderNumber');
+    let orderToken = urlParams.get('token');
     let pollInterval = null;
 
     if (!orderNumber) {
@@ -373,22 +374,26 @@
       }
     }
 
-    if (!orderNumber) {
-      renderCustomerHistoryFallback();
-    } else {
-      orderNumber = orderNumber.toUpperCase();
-      document.getElementById('order-number-display').textContent = orderNumber;
-      fetchOrderDetails();
-      // Poll order status every 4 seconds
-      pollInterval = setInterval(fetchOrderDetails, 4000);
-    }
-
     function getLocalOrders() {
       try {
         return JSON.parse(localStorage.getItem('ochre_customer_orders') || '[]');
       } catch (e) {
         return [];
       }
+    }
+
+    if (!orderNumber) {
+      renderCustomerHistoryFallback();
+    } else {
+      orderNumber = orderNumber.toUpperCase();
+      if (!orderToken) {
+        const local = getLocalOrders().find(o => o.orderNumber === orderNumber);
+        if (local && local.orderToken) orderToken = local.orderToken;
+      }
+      document.getElementById('order-number-display').textContent = orderNumber;
+      fetchOrderDetails();
+      // Poll order status every 4 seconds
+      pollInterval = setInterval(fetchOrderDetails, 4000);
     }
 
     function renderCustomerHistoryFallback() {
@@ -447,9 +452,11 @@
     }
 
     async function fetchOrderDetails() {
-      if (!orderNumber) return;
+      if (!orderNumber || document.hidden) return;
       try {
-        const res = await fetch(`/api/orders/${orderNumber}`);
+        const headers = {};
+        if (orderToken) headers['x-order-token'] = orderToken;
+        const res = await fetch(`/api/orders/${orderNumber}`, { headers });
         const json = await res.json();
 
         if (!json.success || !json.data) {
@@ -468,6 +475,12 @@
         console.error('Polling error:', err);
       }
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && orderNumber) {
+        fetchOrderDetails();
+      }
+    });
 
     function updateOrderUI(order) {
       // 1. Heading & Icon
@@ -697,10 +710,12 @@
             btn.textContent = 'Submitting...';
 
             try {
+              const headers = { 'Content-Type': 'application/json' };
+              if (orderToken) headers['x-order-token'] = orderToken;
               const uRes = await fetch('/api/payments/submit-utr', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderNumber: order.orderNumber, utr: utrVal })
+                headers,
+                body: JSON.stringify({ orderNumber: order.orderNumber, utr: utrVal, orderToken })
               });
               const uJson = await uRes.json();
               if (uJson.success) {

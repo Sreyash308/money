@@ -315,7 +315,7 @@ async function seed() {
 
   // 4. Admin User
   const adminEmail = process.env.ADMIN_EMAIL || 'owner@ochrecoffee.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'ochreAdmin2026!';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'OchreCoffee#2026Secure';
   const existingAdmin = await db.get('SELECT id FROM admin_users WHERE email = ?', [adminEmail]);
 
   if (!existingAdmin) {
@@ -327,7 +327,7 @@ async function seed() {
        VALUES (?, ?, ?, ?, 'OWNER', ?)`,
       [adminId, 'ochre_admin', adminEmail, hash, now]
     );
-    console.log(`  + Admin User created: ${adminEmail} (password: ${adminPassword})`);
+    console.log(`  + Admin User verified: ${adminEmail}`);
   }
 
   // 5. Settings

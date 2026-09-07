@@ -180,6 +180,9 @@ async function initDb() {
         if (!columnNames.includes('customer_utr')) {
           sqliteDb.exec("ALTER TABLE orders ADD COLUMN customer_utr TEXT;");
         }
+        if (!columnNames.includes('order_token')) {
+          sqliteDb.exec("ALTER TABLE orders ADD COLUMN order_token TEXT;");
+        }
         if (!columnNames.includes('idempotency_key')) {
           sqliteDb.exec("ALTER TABLE orders ADD COLUMN idempotency_key TEXT;");
         }

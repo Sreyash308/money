@@ -37,6 +37,7 @@ router.get('/upi-info', (req, res) => {
 router.post('/submit-utr', async (req, res) => {
   try {
     const { orderNumber, utr } = req.body;
+    const clientToken = req.headers['x-order-token'] || req.body.orderToken;
 
     if (!orderNumber || !utr) {
       return res.status(400).json({
@@ -46,7 +47,7 @@ router.post('/submit-utr', async (req, res) => {
     }
 
     const cleanUtr = utr.trim().replace(/[^a-zA-Z0-9]/g, '');
-    if (cleanUtr.length < 6 || cleanUtr.length > 30) {
+    if (cleanUtr.length < 8 || cleanUtr.length > 30) {
       return res.status(400).json({
         success: false,
         error: { code: 'INVALID_UTR', message: 'Please enter a valid UPI reference or UTR number (usually 12 digits).' }
@@ -54,7 +55,7 @@ router.post('/submit-utr', async (req, res) => {
     }
 
     const order = await db.get(
-      'SELECT id, order_number, payment_status, status FROM orders WHERE order_number = ?',
+      'SELECT id, order_number, payment_status, status, order_token FROM orders WHERE order_number = ?',
       [orderNumber.toUpperCase()]
     );
 
@@ -62,6 +63,14 @@ router.post('/submit-utr', async (req, res) => {
       return res.status(404).json({
         success: false,
         error: { code: 'ORDER_NOT_FOUND', message: 'Order not found.' }
+      });
+    }
+
+    // Verify token authorization if token was configured on order
+    if (order.order_token && clientToken && order.order_token !== clientToken) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Unauthorized to submit UTR for this order.' }
       });
     }
 
@@ -82,7 +91,7 @@ router.post('/submit-utr', async (req, res) => {
         orderNumber: order.order_number,
         customerUtr: cleanUtr,
         paymentStatus: order.payment_status,
-        message: 'UTR reference submitted. Our team will verify and begin your order.'
+        message: 'UTR reference recorded. Pending cashier verification.'
       }
     });
   } catch (err) {
@@ -107,7 +116,7 @@ router.post('/verify', async (req, res) => {
     }
 
     const order = await db.get(
-      'SELECT id, order_number, total, payment_status, status FROM orders WHERE order_number = ?',
+      'SELECT id, order_number, total, payment_status, status, razorpay_order_id FROM orders WHERE order_number = ?',
       [orderNumber.toUpperCase()]
     );
 
@@ -118,7 +127,7 @@ router.post('/verify', async (req, res) => {
       });
     }
 
-    // Verify HMAC-SHA256 signature using Razorpay secret
+    // Security Check 1: Verify HMAC-SHA256 signature using Razorpay secret
     const isValid = razorpay.verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
     if (!isValid) {
       console.warn(`⚠️ Invalid Razorpay signature for order ${order.order_number}`);
@@ -128,13 +137,35 @@ router.post('/verify', async (req, res) => {
       });
     }
 
+    // Security Check 2: Verify association with order's created razorpay_order_id
+    if (order.razorpay_order_id && order.razorpay_order_id !== razorpay_order_id) {
+      console.warn(`⚠️ Razorpay order mismatch for order ${order.order_number}: expected ${order.razorpay_order_id}, got ${razorpay_order_id}`);
+      return res.status(400).json({
+        success: false,
+        error: { code: 'ORDER_MISMATCH', message: 'Payment is not associated with this order.' }
+      });
+    }
+
+    // Security Check 3: Idempotent replay if already marked PAID
+    if (order.payment_status === 'PAID') {
+      return res.status(200).json({
+        success: true,
+        data: {
+          orderNumber: order.order_number,
+          paymentStatus: 'PAID',
+          status: order.status,
+          message: 'Payment already verified and confirmed.'
+        }
+      });
+    }
+
     const now = new Date().toISOString();
 
     // Update order status to PAID and CONFIRMED
     await db.run(
       `UPDATE orders
        SET payment_status = 'PAID',
-           status = CASE WHEN status = 'RECEIVED' THEN 'CONFIRMED' ELSE status END,
+           status = CASE WHEN status IN ('PENDING', 'RECEIVED') THEN 'CONFIRMED' ELSE status END,
            razorpay_order_id = ?,
            razorpay_payment_id = ?,
            updated_at = ?
