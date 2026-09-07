@@ -27,14 +27,35 @@ if (databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsW
 } else {
   dbType = 'sqlite';
   const { DatabaseSync } = require('node:sqlite');
-  const dataDir = path.join(__dirname, '..', 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  
+  let dbPath;
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    // Vercel Serverless environment: filesystem under /var/task is read-only, use /tmp
+    dbPath = '/tmp/ochre.db';
+    const bundledDb = path.join(__dirname, '..', 'data', 'ochre.db');
+    if (!fs.existsSync(dbPath) && fs.existsSync(bundledDb)) {
+      try {
+        fs.copyFileSync(bundledDb, dbPath);
+      } catch (e) {
+        console.warn('Could not copy bundled db to /tmp, will initialize fresh:', e.message);
+      }
+    }
+  } else {
+    // Local environment: use local data/ directory
+    const dataDir = path.join(__dirname, '..', 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    dbPath = path.join(dataDir, 'ochre.db');
   }
-  const dbPath = path.join(dataDir, 'ochre.db');
+
   sqliteDb = new DatabaseSync(dbPath);
-  sqliteDb.exec('PRAGMA journal_mode = WAL;');
-  sqliteDb.exec('PRAGMA foreign_keys = ON;');
+  try {
+    sqliteDb.exec('PRAGMA journal_mode = WAL;');
+    sqliteDb.exec('PRAGMA foreign_keys = ON;');
+  } catch (e) {
+    // Some tmp filesystems don't support WAL, ignore error
+  }
   console.log(`✅ Database: Connected via native SQLite (${dbPath})`);
 }
 
