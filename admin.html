@@ -507,6 +507,7 @@
           <input type="text" id="order-search-input" placeholder="Search order #, guest, phone..." 
                  class="checkout-input" style="background: var(--admin-card); color: #fff; border-color: var(--admin-border); width: 250px; padding: 0.45rem 0.9rem; font-size: 0.85rem;">
           <button class="btn btn-secondary btn-sm" onclick="debouncedFetchOrders(false, 0)" style="border-color: var(--admin-border); color: #fff;">↻ Refresh</button>
+          <button class="btn btn-secondary btn-sm" onclick="promptResetOrders()" style="border-color: rgba(235, 87, 87, 0.4); color: #eb5757;" title="Purge test order history to start fresh">🧹 Reset Orders</button>
         </div>
       </div>
 
@@ -1192,6 +1193,34 @@
         }
       } catch (err) {
         alert('Failed to mark paid.');
+      }
+    }
+
+    async function promptResetOrders() {
+      const confirmed = confirm(
+        '⚠️ RESET ALL ORDERS TO START FRESH?\\n\\n' +
+        'This will permanently delete all order history and payment records, and reset the order counter back to CAF-1001.\\n\\n' +
+        'All menu products, categories, tables, and credentials will be preserved.\\n\\n' +
+        'Are you sure you want to delete all order history and start fresh?'
+      );
+      if (!confirmed) return;
+
+      try {
+        const res = await adminFetch('/api/admin/orders/reset', {
+          method: 'POST'
+        });
+        const j = await res.json();
+        if (res.ok) {
+          alert('✅ All order history purged! The order queue is now fresh with 0 orders.');
+          broadcastOrderSync({ action: 'RESET_ORDERS' });
+          debouncedFetchOrders(false, 0);
+          fetchStats();
+          fetchAdminTables();
+        } else {
+          alert(j.error?.message || 'Failed to reset orders.');
+        }
+      } catch (e) {
+        alert('Network error while resetting orders.');
       }
     }
 

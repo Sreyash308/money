@@ -623,6 +623,45 @@ router.post('/tables/:tableNumber/vacate', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/admin/orders/reset - Purge order history and reset sequence (Admin only)
+router.post('/orders/reset', requireAdmin, async (req, res) => {
+  try {
+    const deletedCounts = {};
+    await db.transaction(async (tx) => {
+      const oi = await tx.run('DELETE FROM order_items');
+      const p = await tx.run('DELETE FROM payments');
+      const w = await tx.run('DELETE FROM webhook_events');
+      const o = await tx.run('DELETE FROM orders');
+      deletedCounts.order_items = oi.changes;
+      deletedCounts.payments = p.changes;
+      deletedCounts.webhook_events = w.changes;
+      deletedCounts.orders = o.changes;
+    });
+
+    if (db.dbType === 'sqlite') {
+      try {
+        await db.run("DELETE FROM sqlite_sequence WHERE name IN ('orders', 'order_items', 'payments', 'webhook_events')");
+      } catch (e) {}
+    }
+
+    notifyOrderChange({ action: 'RESET_ORDERS', timestamp: new Date().toISOString() });
+
+    console.log('🧹 Order history reset completed:', deletedCounts);
+
+    res.json({
+      success: true,
+      message: 'All order history safely purged. Sequence reset to fresh start.',
+      deleted: deletedCounts
+    });
+  } catch (err) {
+    console.error('Error resetting order history:', err);
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to reset order history.' }
+    });
+  }
+});
+
 // GET /api/admin/stats - Today's Dashboard Metrics
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
