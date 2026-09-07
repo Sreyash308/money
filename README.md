@@ -8,15 +8,15 @@ A production-grade specialty coffee roastery web application and full restaurant
 
 ---
 
-## 🔗 Local Server & Access Links
+## 🔗 Live Production & Server Links
 
-When running locally (`npm run dev`), the server is active at **`http://localhost:8000`**:
+The live restaurant platform is deployed at **`https://money-iota-woad.vercel.app/`**:
 
-| Destination | URL | Notes |
-| :--- | :--- | :--- |
-| **Customer Menu & Ordering** | [http://localhost:8000/](http://localhost:8000/) | Live catalog, search, persistent cart & checkout |
-| **Live Order Tracking** | [http://localhost:8000/order.html](http://localhost:8000/order.html) | Real-time status stepper (`Received` &rarr; `Ready`) |
-| **Admin Management Portal** | [http://localhost:8000/admin](http://localhost:8000/admin) | Orders queue, instant availability toggle, tables |
+| Destination | Live URL | Local URL (`npm run dev`) | Description |
+| :--- | :--- | :--- | :--- |
+| **Customer Menu & Ordering** | [https://money-iota-woad.vercel.app/](https://money-iota-woad.vercel.app/) | [http://localhost:8000/](http://localhost:8000/) | Live catalog, search, persistent cart & checkout |
+| **Live Order Tracking** | [https://money-iota-woad.vercel.app/order.html](https://money-iota-woad.vercel.app/order.html) | [http://localhost:8000/order.html](http://localhost:8000/order.html) | Real-time status stepper (`Received` &rarr; `Ready`) |
+| **Admin Management Portal** | [https://money-iota-woad.vercel.app/admin](https://money-iota-woad.vercel.app/admin) | [http://localhost:8000/admin](http://localhost:8000/admin) | Orders queue, instant availability toggle, tables |
 
 ### Default Admin Credentials
 - **Email**: `owner@ochrecoffee.com`
