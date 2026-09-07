@@ -510,7 +510,7 @@
             <th>Category</th>
             <th>Price</th>
             <th>Dietary</th>
-            <th>Availability</th>
+            <th>Stock Status / Sold Out</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -591,6 +591,18 @@
           <label class="checkout-label" style="color: #fff;" for="prod-desc">Description</label>
           <textarea id="prod-desc" class="checkout-textarea" style="background: var(--admin-card-light); color:#fff; border-color: var(--admin-border);" rows="2"></textarea>
         </div>
+
+        <div class="checkout-form-group" style="background: var(--admin-card-light); padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--admin-border); display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <label class="checkout-label" style="color: #fff; margin-bottom: 0.2rem; cursor: pointer;" for="prod-available">Stock Availability</label>
+            <div style="font-size: 0.78rem; color: #27ae60; font-weight: 700;" id="prod-avail-status-text">🟢 IN STOCK (Available to order)</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="prod-available" checked onchange="updateModalAvailText(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
         <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1.5rem;">
           <button type="button" class="btn btn-secondary btn-sm" onclick="closeProductModal()">Cancel</button>
           <button type="submit" class="btn btn-primary btn-sm">Save Product</button>
@@ -657,7 +669,39 @@
     document.addEventListener('DOMContentLoaded', () => {
       initAdminAuth();
       initTabNavigation();
+      initRealtimeAdminSync();
     });
+
+    function initRealtimeAdminSync() {
+      // 1. Cross-tab Broadcast Channel
+      try {
+        if (window.BroadcastChannel) {
+          const bc = new BroadcastChannel('ochre_menu_sync');
+          bc.onmessage = (e) => {
+            if (e.data?.type === 'MENU_UPDATE') {
+              if (document.getElementById('panel-menu')?.style.display !== 'none') {
+                fetchAdminMenu();
+              }
+            }
+          };
+        }
+      } catch (e) {}
+
+      // 2. Server-Sent Events stream for instant cross-device sync
+      try {
+        const es = new EventSource('/api/menu/events');
+        es.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'MENU_UPDATE') {
+              if (document.getElementById('panel-menu')?.style.display !== 'none') {
+                fetchAdminMenu();
+              }
+            }
+          } catch (err) {}
+        };
+      } catch (e) {}
+    }
 
     async function initAdminAuth() {
       const loginOverlay = document.getElementById('login-overlay');
@@ -1047,28 +1091,30 @@
       if (!tbody) return;
 
       tbody.innerHTML = products.map(p => `
-        <tr>
+        <tr style="${!p.available ? 'opacity: 0.85; background: rgba(235, 87, 87, 0.04);' : ''}">
           <td>
             <strong>${p.name}</strong>
             <div style="font-size: 0.78rem; color: var(--admin-text-muted);">${p.description || ''}</div>
           </td>
           <td>${p.category_name || p.category_id}</td>
-          <td><strong>₹${p.price}</strong></td>
+          <td><strong style="color: #fff; font-size: 0.98rem;">₹${p.price}</strong></td>
           <td>
             ${p.is_veg ? '<span class="pill-tag tag-veg">Veg</span>' : ''}
             ${p.is_cold ? '<span class="pill-tag tag-cold">Cold</span>' : ''}
           </td>
           <td>
-            <label class="toggle-switch">
-              <input type="checkbox" ${p.available ? 'checked' : ''} onchange="toggleProductAvailability('${p.id}')">
-              <span class="toggle-slider"></span>
-            </label>
-            <span style="font-size: 0.76rem; font-weight: 700; margin-left: 0.5rem; color: ${p.available ? '#27ae60' : '#eb5757'};">
-              ${p.available ? 'AVAILABLE' : 'UNAVAILABLE'}
-            </span>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <label class="toggle-switch" title="Toggle In Stock / Sold Out">
+                <input type="checkbox" ${p.available ? 'checked' : ''} onchange="toggleProductAvailability('${p.id}')">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="admin-badge" style="background: ${p.available ? '#27ae60' : '#eb5757'}; font-size: 0.72rem; padding: 0.22rem 0.55rem; border-radius: 4px; font-weight: 800; letter-spacing: 0.03em;">
+                ${p.available ? 'IN STOCK' : 'SOLD OUT'}
+              </span>
+            </div>
           </td>
           <td>
-            <button class="btn btn-secondary btn-sm" onclick="editProduct('${p.id}', '${escapeHtml(p.name)}', ${p.price}, '${p.category_id}', '${escapeHtml(p.description || '')}')">Edit</button>
+            <button class="btn btn-secondary btn-sm" onclick="editProduct('${p.id}', '${escapeHtml(p.name)}', ${p.price}, '${p.category_id}', '${escapeHtml(p.description || '')}', ${p.available ? 1 : 0})">Edit</button>
             <button class="btn btn-secondary btn-sm" style="color: #eb5757; border-color: rgba(235, 87, 87, 0.4);" onclick="deleteProduct('${p.id}')">Delete</button>
           </td>
         </tr>
@@ -1079,11 +1125,21 @@
       return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
+    function broadcastMenuSync() {
+      try {
+        if (window.BroadcastChannel) {
+          new BroadcastChannel('ochre_menu_sync').postMessage({ type: 'MENU_UPDATE', timestamp: Date.now() });
+        }
+        localStorage.setItem('ochre_menu_last_update', Date.now().toString());
+      } catch (e) {}
+    }
+
     async function toggleProductAvailability(id) {
       try {
         await adminFetch(`/api/admin/products/${id}/availability`, {
           method: 'PATCH'
         });
+        broadcastMenuSync();
         fetchAdminMenu();
       } catch (err) {
         alert('Failed to toggle availability.');
@@ -1096,9 +1152,18 @@
         await adminFetch(`/api/admin/products/${id}`, {
           method: 'DELETE'
         });
+        broadcastMenuSync();
         fetchAdminMenu();
       } catch (err) {
         alert('Failed to delete product.');
+      }
+    }
+
+    function updateModalAvailText(isAvail) {
+      const textEl = document.getElementById('prod-avail-status-text');
+      if (textEl) {
+        textEl.textContent = isAvail ? '🟢 IN STOCK (Available to order)' : '🔴 SOLD OUT (Customers cannot order)';
+        textEl.style.color = isAvail ? '#27ae60' : '#eb5757';
       }
     }
 
@@ -1110,6 +1175,8 @@
       document.getElementById('product-modal-title').textContent = 'Add Menu Product';
       document.getElementById('prod-form-id').value = '';
       prodForm.reset();
+      document.getElementById('prod-available').checked = true;
+      updateModalAvailText(true);
       prodModal.style.display = 'flex';
     });
 
@@ -1117,13 +1184,16 @@
       prodModal.style.display = 'none';
     }
 
-    function editProduct(id, name, price, category, desc) {
+    function editProduct(id, name, price, category, desc, available = 1) {
       document.getElementById('product-modal-title').textContent = 'Edit Menu Product';
       document.getElementById('prod-form-id').value = id;
       document.getElementById('prod-name').value = name;
       document.getElementById('prod-price').value = price;
       document.getElementById('prod-category').value = category;
       document.getElementById('prod-desc').value = desc;
+      const isAvail = available === 1 || available === true;
+      document.getElementById('prod-available').checked = isAvail;
+      updateModalAvailText(isAvail);
       prodModal.style.display = 'flex';
     }
 
@@ -1134,8 +1204,9 @@
       const price = document.getElementById('prod-price').value;
       const categoryId = document.getElementById('prod-category').value;
       const description = document.getElementById('prod-desc').value;
+      const available = document.getElementById('prod-available').checked ? 1 : 0;
 
-      const payload = { name, price, categoryId, description };
+      const payload = { name, price, categoryId, description, available };
 
       const url = id ? `/api/admin/products/${id}` : '/api/admin/products';
       const method = id ? 'PUT' : 'POST';
@@ -1150,6 +1221,7 @@
         });
         if (res.ok) {
           closeProductModal();
+          broadcastMenuSync();
           fetchAdminMenu();
         } else {
           alert('Failed to save product.');

@@ -25,12 +25,13 @@ router.post('/validate', async (req, res) => {
     const validatedItems = [];
 
     for (const item of items) {
-      const { productId, quantity } = item;
+      const productId = item.productId || item.id;
+      const { quantity } = item;
       const qty = parseInt(quantity, 10);
-      if (isNaN(qty) || qty < 1 || qty > 20) {
+      if (!productId || isNaN(qty) || qty < 1 || qty > 20) {
         return res.status(400).json({
           success: false,
-          error: { code: 'INVALID_QUANTITY', message: `Invalid quantity for item: ${productId}` }
+          error: { code: 'INVALID_QUANTITY', message: `Invalid quantity or product for item: ${productId || 'unknown'}` }
         });
       }
 
@@ -229,8 +230,9 @@ router.post('/', async (req, res) => {
     const validatedItems = [];
 
     for (const itm of items) {
+      const productId = itm.productId || itm.id;
       const qty = parseInt(itm.quantity, 10);
-      if (isNaN(qty) || qty < 1 || qty > 20) {
+      if (!productId || isNaN(qty) || qty < 1 || qty > 20) {
         return res.status(400).json({
           success: false,
           error: { code: 'INVALID_QUANTITY', message: 'Quantity must be between 1 and 20.' }
@@ -239,13 +241,13 @@ router.post('/', async (req, res) => {
 
       const product = await db.get(
         'SELECT id, name, price, available, active FROM products WHERE id = ? AND active = 1',
-        [itm.productId]
+        [productId]
       );
 
       if (!product) {
         return res.status(400).json({
           success: false,
-          error: { code: 'PRODUCT_NOT_FOUND', message: `Product ${itm.productId} not found.` }
+          error: { code: 'PRODUCT_NOT_FOUND', message: `Product ${productId} not found.` }
         });
       }
 

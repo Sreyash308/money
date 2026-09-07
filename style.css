@@ -1814,8 +1814,9 @@ button {
   position: relative;
 }
 
-.menu-item-card.is-unavailable {
-  opacity: 0.72;
+.menu-item-card.is-unavailable,
+.favorite-card.is-unavailable {
+  opacity: 0.78;
 }
 
 .item-card-action {
@@ -1886,8 +1887,9 @@ button {
   font-weight: 800;
 }
 
-/* Unavailable Product Pill */
-.badge-unavailable {
+/* Sold Out & Unavailable Badges */
+.badge-unavailable,
+.badge-sold-out {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -1896,9 +1898,61 @@ button {
   background-color: #fce8e6;
   color: #c5221f;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.badge-sold-out {
+  background-color: rgba(235, 87, 87, 0.15);
+  color: #eb5757;
+  border: 1px solid rgba(235, 87, 87, 0.35);
+}
+
+.thumb-sold-out-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 18, 16, 0.65);
+  backdrop-filter: blur(1.5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.thumb-sold-out-tag {
+  background: #eb5757;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.22rem 0.55rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-add-to-cart.is-sold-out,
+.btn-add-to-cart:disabled {
+  background-color: rgba(235, 87, 87, 0.12) !important;
+  color: #eb5757 !important;
+  border: 1px solid rgba(235, 87, 87, 0.3) !important;
+  cursor: not-allowed !important;
+  opacity: 0.95;
+}
+
+.cart-item-sold-out-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #eb5757;
+  background: rgba(235, 87, 87, 0.12);
+  border: 1px solid rgba(235, 87, 87, 0.25);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  margin-top: 0.25rem;
 }
 
 /* Sticky Mobile Cart Pill */

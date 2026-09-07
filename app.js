@@ -167,23 +167,28 @@ const OchreCart = (() => {
         `;
         if (drawerFooter) drawerFooter.style.display = 'none';
       } else {
-        drawerItemsContainer.innerHTML = cart.map(item => `
-          <div class="cart-item-row" data-id="${item.id}">
-            <img src="${item.imageUrl}" alt="${item.name}" class="cart-item-img">
-            <div class="cart-item-meta">
-              <div class="cart-item-title">${item.name}</div>
-              <div class="cart-item-price">₹${item.price} × ${item.quantity} = ₹${item.price * item.quantity}</div>
-            </div>
-            <div class="cart-item-actions">
-              <div class="qty-stepper">
-                <button class="qty-btn" onclick="OchreCart.updateQuantity('${item.id}', -1)" aria-label="Decrease quantity">−</button>
-                <span class="qty-val">${item.quantity}</span>
-                <button class="qty-btn" onclick="OchreCart.updateQuantity('${item.id}', 1)" aria-label="Increase quantity">+</button>
+        drawerItemsContainer.innerHTML = cart.map(item => {
+          const liveProd = menuProductsMap[item.id];
+          const isSoldOut = liveProd && !liveProd.available;
+          return `
+            <div class="cart-item-row" data-id="${item.id}" style="${isSoldOut ? 'opacity: 0.85; border-left: 3px solid #eb5757;' : ''}">
+              <img src="${item.imageUrl}" alt="${item.name}" class="cart-item-img">
+              <div class="cart-item-meta">
+                <div class="cart-item-title">${item.name}</div>
+                <div class="cart-item-price">₹${item.price} × ${item.quantity} = ₹${item.price * item.quantity}</div>
+                ${isSoldOut ? '<div class="cart-item-sold-out-tag">⚠️ Sold Out — Please remove</div>' : ''}
               </div>
-              <button class="cart-item-remove" onclick="OchreCart.removeItem('${item.id}')" aria-label="Remove item" title="Remove">&times;</button>
+              <div class="cart-item-actions">
+                <div class="qty-stepper">
+                  <button class="qty-btn" onclick="OchreCart.updateQuantity('${item.id}', -1)" aria-label="Decrease quantity">−</button>
+                  <span class="qty-val">${item.quantity}</span>
+                  <button class="qty-btn" onclick="OchreCart.updateQuantity('${item.id}', 1)" aria-label="Increase quantity">+</button>
+                </div>
+                <button class="cart-item-remove" onclick="OchreCart.removeItem('${item.id}')" aria-label="Remove item" title="Remove">&times;</button>
+              </div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
 
         if (subtotalVal) subtotalVal.textContent = `₹${subtotal}`;
         if (totalVal) totalVal.textContent = `₹${subtotal}`;
@@ -195,34 +200,88 @@ const OchreCart = (() => {
     document.querySelectorAll('[data-product-id]').forEach(elem => {
       const pId = elem.getAttribute('data-product-id');
       const cartItem = getItem(pId);
+      const liveProd = menuProductsMap[pId];
+      const isAvailable = liveProd ? Boolean(liveProd.available) : true;
+      const isFavorite = elem.classList.contains('favorite-card');
       const actionWrap = elem.querySelector('.item-card-action');
-      if (actionWrap && !actionWrap.classList.contains('unavailable-action')) {
-        const isFavorite = elem.classList.contains('favorite-card');
-        if (cartItem && cartItem.quantity > 0) {
-          actionWrap.innerHTML = `
-            <div class="qty-stepper" ${isFavorite ? 'style="width: 100%; justify-content: space-between; padding: 0.35rem 0.75rem; min-height: 44px;"' : ''}>
-              <button class="qty-btn" onclick="OchreCart.updateQuantity('${pId}', -1)" aria-label="Decrease quantity">−</button>
-              <span class="qty-val" ${isFavorite ? 'style="font-size: 1.05rem;"' : ''}>${cartItem.quantity}</span>
-              <button class="qty-btn" onclick="OchreCart.updateQuantity('${pId}', 1)" aria-label="Increase quantity">+</button>
-            </div>
-          `;
+
+      // Synchronize live price & name if updated by admin
+      if (liveProd) {
+        const priceEl = elem.querySelector('.item-card-price, .favorite-price, .favorite-card-price');
+        if (priceEl) priceEl.innerHTML = `&#8377;${liveProd.price}`;
+        const titleEl = elem.querySelector('.item-card-title, .favorite-title, .favorite-card-title');
+        if (titleEl && liveProd.name) titleEl.textContent = liveProd.name;
+      }
+
+      // Synchronize availability classes & thumb overlay
+      const thumbBox = elem.querySelector('.item-card-thumb-box, .favorite-card-media');
+      if (thumbBox) {
+        let overlay = thumbBox.querySelector('.thumb-sold-out-overlay');
+        if (!isAvailable) {
+          if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'thumb-sold-out-overlay';
+            overlay.innerHTML = '<span class="thumb-sold-out-tag">SOLD OUT</span>';
+            thumbBox.appendChild(overlay);
+          }
+        } else if (overlay) {
+          overlay.remove();
+        }
+      }
+      elem.classList.toggle('is-unavailable', !isAvailable);
+
+      if (actionWrap) {
+        if (!isAvailable) {
+          actionWrap.className = 'item-card-action unavailable-action';
+          actionWrap.innerHTML = `<button class="btn-add-to-cart is-sold-out" ${isFavorite ? 'style="width: 100%; min-height: 44px;"' : ''} disabled aria-disabled="true"><span>Sold Out</span></button>`;
         } else {
-          if (isFavorite) {
+          actionWrap.className = 'item-card-action';
+          if (cartItem && cartItem.quantity > 0) {
             actionWrap.innerHTML = `
-              <button class="btn btn-primary btn-sm" style="width: 100%; min-height: 44px;" onclick="handleAddToCartClick('${pId}')">
-                <span>+ Add to Cart</span>
-              </button>
+              <div class="qty-stepper" ${isFavorite ? 'style="width: 100%; justify-content: space-between; padding: 0.35rem 0.75rem; min-height: 44px;"' : ''}>
+                <button class="qty-btn" onclick="OchreCart.updateQuantity('${pId}', -1)" aria-label="Decrease quantity">−</button>
+                <span class="qty-val" ${isFavorite ? 'style="font-size: 1.05rem;"' : ''}>${cartItem.quantity}</span>
+                <button class="qty-btn" onclick="OchreCart.updateQuantity('${pId}', 1)" aria-label="Increase quantity">+</button>
+              </div>
             `;
           } else {
-            actionWrap.innerHTML = `
-              <button class="btn-add-to-cart" onclick="handleAddToCartClick('${pId}')">
-                <span>+ Add</span>
-              </button>
-            `;
+            if (isFavorite) {
+              actionWrap.innerHTML = `
+                <button class="btn btn-primary btn-sm" style="width: 100%; min-height: 44px;" onclick="handleAddToCartClick('${pId}')">
+                  <span>+ Add to Cart</span>
+                </button>
+              `;
+            } else {
+              actionWrap.innerHTML = `
+                <button class="btn-add-to-cart" onclick="handleAddToCartClick('${pId}')">
+                  <span>+ Add</span>
+                </button>
+              `;
+            }
           }
         }
       }
     });
+  }
+
+  function syncWithCatalog(catalogMap) {
+    let modified = false;
+    cart.forEach(item => {
+      const live = catalogMap[item.id];
+      if (live) {
+        if (item.price !== live.price) {
+          item.price = live.price;
+          modified = true;
+        }
+        if (item.name !== live.name) {
+          item.name = live.name;
+          modified = true;
+        }
+      }
+    });
+    if (modified) {
+      save();
+    }
   }
 
   function reloadFromStorage() {
@@ -240,6 +299,7 @@ const OchreCart = (() => {
     getCount,
     getSubtotal,
     renderAll,
+    syncWithCatalog,
     reloadFromStorage
   };
 })();
@@ -411,10 +471,11 @@ function renderMenuCards(products) {
         <div class="item-card-media">
           <div class="item-card-thumb-box">
             <img src="${thumbUrl}" alt="${prod.name}" class="item-card-thumb" loading="lazy">
+            ${!isAvailable ? '<div class="thumb-sold-out-overlay"><span class="thumb-sold-out-tag">SOLD OUT</span></div>' : ''}
           </div>
           <div class="item-card-action ${!isAvailable ? 'unavailable-action' : ''}">
             ${!isAvailable 
-              ? '<span class="badge-unavailable">Unavailable</span>'
+              ? '<button class="btn-add-to-cart is-sold-out" disabled aria-disabled="true"><span>Sold Out</span></button>'
               : cartItem && cartItem.quantity > 0
                 ? `
                   <div class="qty-stepper">
@@ -469,9 +530,35 @@ function connectFavoritesCards() {
       const prod = menuProductsMap[m.id];
       const isAvailable = prod ? Boolean(prod.available) : true;
 
+      // Update favorite card live price & text
+      if (prod) {
+        const priceEl = card.querySelector('.favorite-price');
+        if (priceEl) priceEl.innerHTML = `&#8377;${prod.price}`;
+        const titleEl = card.querySelector('.favorite-title');
+        if (titleEl && prod.name) titleEl.textContent = prod.name;
+        const descEl = card.querySelector('.favorite-desc');
+        if (descEl && prod.description) descEl.textContent = prod.description;
+      }
+
+      const mediaBox = card.querySelector('.favorite-card-media');
+      if (mediaBox) {
+        let overlay = mediaBox.querySelector('.thumb-sold-out-overlay');
+        if (!isAvailable) {
+          if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'thumb-sold-out-overlay';
+            overlay.innerHTML = '<span class="thumb-sold-out-tag">SOLD OUT</span>';
+            mediaBox.appendChild(overlay);
+          }
+        } else if (overlay) {
+          overlay.remove();
+        }
+      }
+      card.classList.toggle('is-unavailable', !isAvailable);
+
       if (!isAvailable) {
         actionWrap.className = 'item-card-action unavailable-action';
-        actionWrap.innerHTML = '<span class="badge-unavailable">Currently Unavailable</span>';
+        actionWrap.innerHTML = '<button class="btn-add-to-cart is-sold-out" style="width: 100%; min-height: 44px;" disabled aria-disabled="true"><span>Sold Out</span></button>';
       } else {
         const cartItem = OchreCart.getItem(m.id);
         if (cartItem && cartItem.quantity > 0) {
@@ -495,10 +582,16 @@ function connectFavoritesCards() {
 }
 
 /**
- * Real-time synchronization controller
+ * Real-time synchronization controller:
+ * 1. BroadcastChannel('ochre_menu_sync') for instant same-browser cross-tab updates (<10ms)
+ * 2. Server-Sent Events (/api/menu/events) for instant remote device push updates (<100ms)
+ * 3. Fast Version Polling (/api/menu/version) every 2.5s as robust fail-safe
  */
 function initSyncListeners() {
-  // 1. Multi-tab synchronization
+  let lastKnownVersion = null;
+  let isSyncing = false;
+
+  // 1. Multi-tab local storage & BroadcastChannel
   window.addEventListener('storage', (e) => {
     if (e.key === 'ochre_cart') {
       OchreCart.reloadFromStorage();
@@ -509,45 +602,132 @@ function initSyncListeners() {
         openOrdersModal();
       }
     }
+    if (e.key === 'ochre_menu_sync') {
+      syncLiveMenu(true);
+    }
   });
 
-  // 2. Background live menu availability & price sync
-  let isSyncing = false;
-  async function syncLiveMenu() {
-    if (isSyncing || document.hidden) return;
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const channel = new BroadcastChannel('ochre_menu_sync');
+      channel.onmessage = () => {
+        syncLiveMenu(true);
+      };
+    } catch (err) {
+      console.warn('BroadcastChannel error:', err);
+    }
+  }
+
+  // 2. Server-Sent Events (SSE) for instant real-time sync across separate windows/devices
+  function setupSSE() {
+    if (typeof EventSource === 'undefined') return;
+    try {
+      const evtSource = new EventSource('/api/menu/events');
+      evtSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload && payload.version) {
+            lastKnownVersion = payload.version;
+          }
+        } catch (_) {}
+        syncLiveMenu(true);
+      };
+      evtSource.addEventListener('menu_change', (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload && payload.version) {
+            lastKnownVersion = payload.version;
+          }
+        } catch (_) {}
+        syncLiveMenu(true);
+      });
+      evtSource.onerror = () => {
+        // EventSource automatically reconnects on error
+      };
+    } catch (err) {
+      console.warn('SSE connection error:', err);
+    }
+  }
+  setupSSE();
+
+  // 3. Live Menu Synchronization Function
+  async function syncLiveMenu(force = false) {
+    if (isSyncing) return;
     isSyncing = true;
     try {
-      const res = await fetch('/api/menu');
+      const res = await fetch('/api/menu', { cache: 'no-store' });
       const json = await res.json();
       if (json.success && json.data && json.data.products) {
-        let hasChanges = false;
-        json.data.products.forEach(p => {
+        const newProducts = json.data.products;
+        let hasChanges = force;
+
+        if (json.data.version) {
+          lastKnownVersion = json.data.version;
+        }
+
+        const newMap = {};
+        newProducts.forEach(p => {
+          newMap[p.id] = p;
           const old = menuProductsMap[p.id];
-          if (!old || old.available !== p.available || old.price !== p.price) {
+          if (!old) {
+            hasChanges = true;
+          } else if (
+            Boolean(old.available) !== Boolean(p.available) ||
+            old.price !== p.price ||
+            old.name !== p.name ||
+            old.description !== p.description
+          ) {
             hasChanges = true;
           }
-          menuProductsMap[p.id] = p;
         });
 
+        // Also check if any products were added or deleted
+        const oldKeys = Object.keys(menuProductsMap);
+        if (oldKeys.length !== newProducts.length) {
+          hasChanges = true;
+        }
+
         if (hasChanges) {
-          renderMenuCards(json.data.products);
+          menuProductsMap = newMap;
+          OchreCart.syncWithCatalog(menuProductsMap);
+          renderMenuCards(newProducts);
           connectFavoritesCards();
           OchreCart.renderAll();
         }
       }
     } catch (e) {
-      // Quiet fail on network loss
+      // Quiet fail on temporary network issues
     } finally {
       isSyncing = false;
     }
   }
 
-  // Poll every 6 seconds for admin catalog changes
-  setInterval(syncLiveMenu, 6000);
+  // 4. Lightweight Version Polling (Every 2.5s)
+  async function checkVersionPoll() {
+    if (document.hidden) return;
+    try {
+      const res = await fetch('/api/menu/version', { cache: 'no-store' });
+      const json = await res.json();
+      if (json.success && json.data && json.data.version) {
+        if (lastKnownVersion === null) {
+          lastKnownVersion = json.data.version;
+        } else if (lastKnownVersion !== json.data.version) {
+          lastKnownVersion = json.data.version;
+          syncLiveMenu(true);
+        }
+      }
+    } catch (_) {}
+  }
+  setInterval(checkVersionPoll, 2500);
 
-  // Sync immediately when tab regains focus
+  // Sync immediately when tab regains visibility/focus
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) syncLiveMenu();
+    if (!document.hidden) {
+      checkVersionPoll();
+    }
+  });
+  window.addEventListener('focus', () => {
+    checkVersionPoll();
   });
 }
 
@@ -1143,6 +1323,20 @@ function openCheckoutModal() {
     showToast('Your cart is empty. Add something delicious first.', 'info');
     return;
   }
+
+  // Check if any cart item is currently sold out
+  const cartItems = OchreCart.getItems();
+  const soldOutItem = cartItems.find(item => {
+    const live = menuProductsMap[item.id];
+    return live && !Boolean(live.available);
+  });
+
+  if (soldOutItem) {
+    showToast(`"${soldOutItem.name}" is currently sold out. Please remove it from your cart before checking out.`, 'error');
+    openCartDrawer();
+    return;
+  }
+
   const modal = document.getElementById('checkout-modal-overlay');
   if (modal) {
     modal.classList.add('is-open');

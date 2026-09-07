@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../db');
 const { requireAdmin, getJwtSecret } = require('../middleware/auth');
+const { notifyMenuChange } = require('./menu');
 
 // POST /api/admin/login - Admin Login
 router.post('/login', async (req, res) => {
@@ -291,7 +292,7 @@ router.get('/products', requireAdmin, async (req, res) => {
 // POST /api/admin/products - Add New Menu Item
 router.post('/products', requireAdmin, async (req, res) => {
   try {
-    const { name, description, price, imageUrl, categoryId, isVeg, isCold, originTag } = req.body;
+    const { name, description, price, imageUrl, categoryId, isVeg, isCold, originTag, available } = req.body;
 
     if (!name || !price || !categoryId) {
       return res.status(400).json({
@@ -310,6 +311,7 @@ router.post('/products', requireAdmin, async (req, res) => {
 
     const id = 'prod_' + crypto.randomUUID().slice(0, 8);
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + id.slice(-4);
+    const isAvail = available !== undefined ? (available ? 1 : 0) : 1;
     const now = new Date().toISOString();
 
     await db.run(
@@ -317,7 +319,7 @@ router.post('/products', requireAdmin, async (req, res) => {
         id, name, slug, description, price, image_url, category_id,
         is_veg, is_cold, origin_tag, available, active, sort_order,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 99, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 99, ?, ?)`,
       [
         id,
         name.trim(),
@@ -329,16 +331,20 @@ router.post('/products', requireAdmin, async (req, res) => {
         isVeg ? 1 : 0,
         isCold ? 1 : 0,
         originTag ? originTag.trim() : null,
+        isAvail,
         now,
         now
       ]
     );
 
-    console.log(`🍵 Added new product: ${name} (₹${numPrice})`);
+    console.log(`🍵 Added new product: ${name} (₹${numPrice}, inStock: ${isAvail === 1})`);
+
+    // Broadcast instant real-time sync event
+    notifyMenuChange({ action: 'CREATE', productId: id, name, price: numPrice, available: isAvail === 1 });
 
     res.status(201).json({
       success: true,
-      data: { id, name, slug, price: numPrice }
+      data: { id, name, slug, price: numPrice, available: isAvail === 1 }
     });
   } catch (err) {
     console.error('Error adding product:', err);
@@ -349,13 +355,13 @@ router.post('/products', requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin/products/:id - Edit Product Details
+// PUT /api/admin/products/:id - Edit Product Details (Price, Name, Stock, etc.)
 router.put('/products/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, imageUrl, categoryId, isVeg, isCold, originTag } = req.body;
+    const { name, description, price, imageUrl, categoryId, isVeg, isCold, originTag, available } = req.body;
 
-    const existing = await db.get('SELECT id FROM products WHERE id = ?', [id]);
+    const existing = await db.get('SELECT id, name, price, available FROM products WHERE id = ?', [id]);
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -363,7 +369,8 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       });
     }
 
-    const numPrice = parseInt(price, 10);
+    const numPrice = price !== undefined ? parseInt(price, 10) : null;
+    const isAvail = available !== undefined ? (available ? 1 : 0) : null;
     const now = new Date().toISOString();
 
     await db.run(
@@ -376,21 +383,28 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
            is_veg = COALESCE(?, is_veg),
            is_cold = COALESCE(?, is_cold),
            origin_tag = COALESCE(?, origin_tag),
+           available = COALESCE(?, available),
            updated_at = ?
        WHERE id = ?`,
       [
         name ? name.trim() : null,
         description !== undefined ? description.trim() : null,
-        !isNaN(numPrice) ? numPrice : null,
+        !isNaN(numPrice) && numPrice !== null ? numPrice : null,
         imageUrl || null,
         categoryId || null,
         isVeg !== undefined ? (isVeg ? 1 : 0) : null,
         isCold !== undefined ? (isCold ? 1 : 0) : null,
         originTag !== undefined ? originTag : null,
+        isAvail,
         now,
         id
       ]
     );
+
+    console.log(`✏️ Updated product: ${name || existing.name} (price: ${numPrice || existing.price}, stock: ${isAvail !== null ? isAvail : existing.available})`);
+
+    // Broadcast instant real-time sync event
+    notifyMenuChange({ action: 'UPDATE', productId: id, name: name || existing.name, price: numPrice || existing.price, available: isAvail !== null ? isAvail === 1 : existing.available === 1 });
 
     res.json({ success: true, message: 'Product updated successfully.' });
   } catch (err) {
@@ -402,7 +416,7 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH /api/admin/products/:id/availability - Instant Product Availability Toggle
+// PATCH /api/admin/products/:id/availability - Instant Product Availability / Sold Out Toggle
 router.patch('/products/:id/availability', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -421,6 +435,9 @@ router.patch('/products/:id/availability', requireAdmin, async (req, res) => {
     await db.run('UPDATE products SET available = ?, updated_at = ? WHERE id = ?', [newAvailability, now, id]);
 
     console.log(`⚡ Instant Availability Toggle: ${product.name} is now ${newAvailability === 1 ? 'AVAILABLE' : 'UNAVAILABLE'}`);
+
+    // Broadcast instant real-time sync event
+    notifyMenuChange({ action: 'AVAILABILITY', productId: id, name: product.name, available: newAvailability === 1 });
 
     res.json({
       success: true,
@@ -445,6 +462,10 @@ router.delete('/products/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const now = new Date().toISOString();
     await db.run('UPDATE products SET active = 0, updated_at = ? WHERE id = ?', [now, id]);
+
+    // Broadcast instant real-time sync event
+    notifyMenuChange({ action: 'DELETE', productId: id });
+
     res.json({ success: true, message: 'Product removed from menu.' });
   } catch (err) {
     console.error('Error deleting product:', err);
