@@ -198,8 +198,7 @@ async function runRealtimeSyncTest() {
   const orderWithSoldOut = await post('/api/orders', {
     customerName: 'Test Sold Out User',
     customerPhone: '9876543210',
-    orderType: 'DINE_IN',
-    tableNumber: 1,
+    orderType: 'TAKEAWAY',
     paymentMethod: 'COUNTER',
     items: [
       { id: 'prod_caramel_latte', quantity: 1 }

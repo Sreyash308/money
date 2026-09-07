@@ -460,7 +460,7 @@
                   <div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: var(--color-text-primary);">${o.orderNumber}</div>
                     <div style="font-size: 0.82rem; color: var(--color-text-muted); margin-top: 2px;">
-                      ${o.orderType === 'DINE_IN' ? `🍽️ Table ${o.tableNumber}` : '🛍️ Takeaway'} &bull; ${new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      ${o.orderType === 'DINE_IN' ? `🍽️ ${o.tableLabel || (o.tableNumbers && o.tableNumbers.length > 1 ? 'Tables ' + o.tableNumbers.join(' & ') : 'Table ' + (o.tableNumber < 10 ? '0' + o.tableNumber : o.tableNumber))}` : '🛍️ Takeaway'} &bull; ${new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div style="font-size: 0.9rem; font-weight: 750; color: var(--color-accent-ochre); margin-top: 4px;">
                       ₹${o.total} (${o.paymentMethod === 'UPI' ? 'UPI Online' : 'Pay at Counter'})
@@ -521,6 +521,10 @@
 
     function updateOrderUI(order) {
       const isPaid = order.paymentStatus === 'PAID';
+      const tableDisplay = order.tableLabel 
+        || (order.tableNumbers && order.tableNumbers.length > 1 ? `Tables ${order.tableNumbers.join(' & ')}` : '')
+        || (order.tableNumber ? `Table ${order.tableNumber < 10 ? '0' + order.tableNumber : order.tableNumber}` : 'Table');
+      const partyText = order.guestCount ? ` (Party of ${order.guestCount})` : '';
 
       // 1. Heading & Icon
       const heading = document.getElementById('order-status-heading');
@@ -531,7 +535,7 @@
         if (isPaid) {
           heading.textContent = 'Order Accepted & Confirmed!';
           subhead.textContent = order.orderType === 'DINE_IN'
-            ? `Your payment is confirmed. Heading to the kitchen for Table ${order.tableNumber}.`
+            ? `Your payment is confirmed. Heading to the kitchen for ${tableDisplay}.`
             : 'Your payment is confirmed. Heading to the kitchen for preparation.';
           icon.textContent = '✅';
         } else {
@@ -544,25 +548,25 @@
       } else if (order.status === 'CONFIRMED') {
         heading.textContent = 'Order Accepted & Confirmed!';
         subhead.textContent = order.orderType === 'DINE_IN'
-          ? `Payment verified! Our kitchen is preparing to cook your order for Table ${order.tableNumber}.`
+          ? `Payment verified! Our kitchen is preparing to cook your order for ${tableDisplay}.`
           : 'Payment verified! Our kitchen is preparing to cook your order.';
         icon.textContent = '✅';
       } else if (order.status === 'PREPARING') {
         heading.textContent = '🍳 Food is Preparing';
         subhead.textContent = order.orderType === 'DINE_IN'
-          ? `Our chefs and baristas are freshly preparing your order for Table ${order.tableNumber}.`
+          ? `Our chefs and baristas are freshly preparing your order for ${tableDisplay}.`
           : 'Our kitchen is freshly preparing your takeaway order right now.';
         icon.textContent = '🍳';
       } else if (order.status === 'READY') {
         heading.textContent = '🎉 Food is Cooked & Ready!';
         subhead.textContent = order.orderType === 'DINE_IN'
-          ? `Your freshly cooked food is on its way to Table ${order.tableNumber}! Enjoy your meal.`
+          ? `Your freshly cooked food is on its way to ${tableDisplay}! Enjoy your meal.`
           : `Your freshly cooked order #${order.orderNumber} is ready at the pickup counter!`;
         icon.textContent = '🔔';
       } else if (order.status === 'COMPLETED') {
         heading.textContent = '🌿 Order Completed';
-        subhead.textContent = order.orderType === 'DINE_IN' && order.tableNumber
-          ? `Table #${order.tableNumber} is cleaned & vacated. Thank you for dining with Ochre Coffee Roasters!`
+        subhead.textContent = order.orderType === 'DINE_IN' && (order.tableNumber || order.tableNumbers)
+          ? `${tableDisplay} is cleaned & vacated. Thank you for dining with Ochre Coffee Roasters!`
           : 'Thank you for savoring the craft with us. Have a wonderful day!';
         icon.textContent = '🌿';
       } else if (order.status === 'CANCELLED') {
@@ -648,7 +652,7 @@
             <div>
               <div style="font-weight: 850; font-size: 1.05rem; color: #27ae60;">🎉 Food is Cooked &amp; Ready!</div>
               <div style="font-size: 0.86rem; color: var(--color-text-primary); margin-top: 2px;">
-                ${order.orderType === 'DINE_IN' ? `Your freshly cooked dishes are being served to Table #${order.tableNumber}! Enjoy your meal.` : `Your freshly cooked order #${order.orderNumber} is ready for pickup at the counter!`}
+                ${order.orderType === 'DINE_IN' ? `Your freshly cooked dishes are being served to ${tableDisplay}! Enjoy your meal.` : `Your freshly cooked order #${order.orderNumber} is ready for pickup at the counter!`}
               </div>
             </div>
           </div>
@@ -661,7 +665,7 @@
             <div>
               <div style="font-weight: 800; font-size: 0.98rem; color: var(--color-text-primary);">Order Completed</div>
               <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 2px;">
-                ${order.orderType === 'DINE_IN' && order.tableNumber ? `Table #${order.tableNumber} is cleaned &amp; vacated for next guests. Thank you for dining with Ochre Coffee!` : 'Thank you for savoring the craft with us. Have a wonderful day!'}
+                ${order.orderType === 'DINE_IN' && (order.tableNumber || order.tableNumbers) ? `${tableDisplay} is cleaned &amp; vacated for next guests. Thank you for dining with Ochre Coffee!` : 'Thank you for savoring the craft with us. Have a wonderful day!'}
               </div>
             </div>
           </div>
@@ -675,7 +679,7 @@
       const diningEl = document.getElementById('order-dining-type');
       if (diningEl) {
         diningEl.textContent = order.orderType === 'DINE_IN' 
-          ? `🍽️ Table ${order.tableNumber < 10 ? '0' + order.tableNumber : order.tableNumber}` 
+          ? `🍽️ ${tableDisplay}${partyText}` 
           : '🛍️ Takeaway';
       }
 
@@ -695,7 +699,7 @@
       if (instEl) {
         if (order.paymentStatus === 'PAID') {
           instEl.textContent = order.orderType === 'DINE_IN'
-            ? `You are seated at Table ${order.tableNumber}. Your payment is confirmed. Our barista team will bring your items to you shortly.`
+            ? `You are seated at ${tableDisplay}${partyText}. Your payment is confirmed. Our barista team will bring your items to you shortly.`
             : 'Your payment is confirmed. Please pick up your items at the front counter when ready.';
         } else if (order.paymentMethod === 'UPI') {
           instEl.innerHTML = `

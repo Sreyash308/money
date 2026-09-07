@@ -739,7 +739,9 @@ function initSyncListeners() {
 function initCheckoutFlow() {
   let currentStep = 1;
   let orderType = 'DINE_IN';
-  let selectedTableNumber = null;
+  let selectedTableNumbers = [];
+  let selectedGuestCount = 2;
+  let cachedTablesList = [];
   let paymentMethod = 'UPI';
 
   const overlay = document.getElementById('checkout-modal-overlay');
@@ -767,7 +769,7 @@ function initCheckoutFlow() {
       orderType = 'TAKEAWAY';
       optTakeaway.classList.add('is-selected');
       optDineIn.classList.remove('is-selected');
-      selectedTableNumber = null;
+      selectedTableNumbers = [];
       if (stepNavTable) stepNavTable.style.display = 'none';
     });
   }
@@ -822,8 +824,13 @@ function initCheckoutFlow() {
           goToStep(4);
         }
       } else if (currentStep === 3) {
-        if (!selectedTableNumber) {
-          showToast('Please select a table to sit at.', 'error');
+        if (!selectedTableNumbers || selectedTableNumbers.length === 0) {
+          showToast('Please select at least one table for your party.', 'error');
+          return;
+        }
+        const totalCapacity = calculateSelectedCapacity();
+        if (totalCapacity < selectedGuestCount) {
+          showToast(`Selected table(s) have ${totalCapacity} seats, but your party has ${selectedGuestCount} guests. Please select an additional table to seat everyone comfortably.`, 'warning');
           return;
         }
         goToStep(4);
@@ -884,7 +891,72 @@ function initCheckoutFlow() {
     }
   }
 
+  function calculateSelectedCapacity() {
+    return selectedTableNumbers.reduce((sum, num) => {
+      const tbl = cachedTablesList.find(t => t.tableNumber === num);
+      if (!tbl) return sum;
+      return sum + (tbl.availableSeats != null ? tbl.availableSeats : tbl.capacity);
+    }, 0);
+  }
+
+  function updateCapacityFulfillment() {
+    const bar = document.getElementById('capacity-fulfillment-bar');
+    if (!bar) return;
+
+    const totalSeats = calculateSelectedCapacity();
+    const needed = selectedGuestCount;
+    const sortedNums = [...selectedTableNumbers].sort((a, b) => a - b);
+    const tableNames = sortedNums.map(n => n < 10 ? '0' + n : '' + n).join(' & ');
+
+    if (selectedTableNumbers.length === 0) {
+      bar.style.background = 'rgba(184, 93, 57, 0.08)';
+      bar.style.border = '1px dashed var(--color-accent-ochre)';
+      bar.style.color = 'var(--color-accent-ochre)';
+      bar.innerHTML = `
+        <span>⚠️ Select table(s) for <strong>${needed} guest${needed > 1 ? 's' : ''}</strong>${needed > 4 ? ' (combine tables for 5+ seats)' : ''}</span>
+        <span>0 / ${needed} Seats</span>
+      `;
+    } else if (totalSeats >= needed) {
+      bar.style.background = 'rgba(39, 174, 96, 0.12)';
+      bar.style.border = '1px solid #27ae60';
+      bar.style.color = '#27ae60';
+      bar.innerHTML = `
+        <span>✅ Capacity fulfilled! Seating for ${needed} guests at Table ${tableNames}</span>
+        <span style="font-weight: 800;">${totalSeats} Seats (${totalSeats - needed > 0 ? `+${totalSeats - needed} extra` : 'Exact fit'})</span>
+      `;
+    } else {
+      const remaining = needed - totalSeats;
+      bar.style.background = 'rgba(242, 153, 74, 0.15)';
+      bar.style.border = '1px solid #d97706';
+      bar.style.color = '#d97706';
+      bar.innerHTML = `
+        <span>⚠️ Selected ${totalSeats} of ${needed} seats. Please pick another table to seat full party</span>
+        <span style="font-weight: 800;">Need +${remaining} more seat${remaining > 1 ? 's' : ''}</span>
+      `;
+    }
+  }
+
+  function initGuestSelector() {
+    const guestPillsRow = document.getElementById('guest-pills-row');
+    if (!guestPillsRow || guestPillsRow._hasListener) return;
+    guestPillsRow._hasListener = true;
+
+    guestPillsRow.addEventListener('click', (e) => {
+      const btn = e.target.closest('.guest-pill');
+      if (!btn) return;
+      const count = parseInt(btn.getAttribute('data-guests'), 10) || 2;
+      selectedGuestCount = count;
+      guestPillsRow.querySelectorAll('.guest-pill').forEach(b => b.classList.toggle('is-active', b === btn));
+      const display = document.getElementById('guest-count-display');
+      if (display) display.textContent = `${count} Guest${count > 1 ? 's' : ''}`;
+
+      updateCapacityFulfillment();
+      renderTableCards();
+    });
+  }
+
   async function loadTablesForSelection() {
+    initGuestSelector();
     const grid = document.getElementById('checkout-tables-grid');
     if (!grid) return;
 
@@ -893,30 +965,73 @@ function initCheckoutFlow() {
       const json = await res.json();
 
       if (json.success && json.data) {
-        grid.innerHTML = json.data.map(tbl => `
-          <div class="table-card ${tbl.isOccupied ? 'is-occupied' : ''} ${selectedTableNumber === tbl.tableNumber ? 'is-selected' : ''}"
-               data-table-num="${tbl.tableNumber}">
-            <div class="table-card-num">T-${tbl.tableNumber < 10 ? '0' + tbl.tableNumber : tbl.tableNumber}</div>
-            <div class="table-card-meta">${tbl.capacity} Seats · ${tbl.isOccupied ? 'Occupied' : 'Open'}</div>
-          </div>
-        `).join('');
-
-        grid.querySelectorAll('.table-card').forEach(card => {
-          card.addEventListener('click', () => {
-            if (card.classList.contains('is-occupied')) {
-              showToast('This table is currently occupied. Please choose an open table.', 'info');
-              return;
-            }
-            const num = parseInt(card.getAttribute('data-table-num'), 10);
-            selectedTableNumber = num;
-            grid.querySelectorAll('.table-card').forEach(c => c.classList.remove('is-selected'));
-            card.classList.add('is-selected');
-          });
-        });
+        cachedTablesList = json.data;
+        renderTableCards();
+        updateCapacityFulfillment();
+      } else {
+        grid.innerHTML = '<div style="color: #c5221f; padding: 1rem;">Unable to load tables.</div>';
       }
     } catch (e) {
       grid.innerHTML = '<div style="color: #c5221f; padding: 1rem;">Failed to load tables. Please check your connection.</div>';
     }
+  }
+
+  function renderTableCards() {
+    const grid = document.getElementById('checkout-tables-grid');
+    if (!grid || !cachedTablesList.length) return;
+
+    grid.innerHTML = cachedTablesList.map(tbl => {
+      const isOcc = tbl.occupancyStatus === 'OCCUPIED' || tbl.isOccupied;
+      const isHalf = tbl.occupancyStatus === 'HALF_OCCUPIED' || tbl.isHalfOccupied;
+      const isVacant = tbl.occupancyStatus === 'FULLY_VACANT' || (!isOcc && !isHalf);
+      const isSel = selectedTableNumbers.includes(tbl.tableNumber);
+
+      const stateClass = isOcc ? 'state-occupied' : (isHalf ? 'state-half' : 'state-vacant');
+      const badgeHtml = isOcc
+        ? '<span class="table-card-badge badge-occupied">🔴 Occupied</span>'
+        : (isHalf
+          ? `<span class="table-card-badge badge-half">🟡 Half Open (${tbl.availableSeats}/${tbl.capacity})</span>`
+          : '<span class="table-card-badge badge-vacant">🟢 Fully Vacant</span>');
+
+      return `
+        <div class="table-card ${stateClass} ${isSel ? 'is-selected' : ''}"
+             data-table-num="${tbl.tableNumber}"
+             role="button"
+             tabindex="0"
+             title="${isOcc ? 'Table is occupied' : (isSel ? 'Click to deselect' : 'Click to select')}">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div class="table-card-num">T-${tbl.tableNumber < 10 ? '0' + tbl.tableNumber : tbl.tableNumber}</div>
+            ${isSel ? '<span style="color: var(--color-accent-ochre); font-size: 1.1rem; font-weight: 900; line-height: 1;">✓</span>' : ''}
+          </div>
+          <div>
+            ${badgeHtml}
+            <div class="table-card-meta">${tbl.capacity} Seats · ${tbl.availableSeats != null ? tbl.availableSeats : tbl.capacity} Open</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('.table-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const num = parseInt(card.getAttribute('data-table-num'), 10);
+        const tbl = cachedTablesList.find(t => t.tableNumber === num);
+        if (!tbl) return;
+
+        if (tbl.occupancyStatus === 'OCCUPIED' || tbl.isOccupied) {
+          showToast(`Table ${num} is currently occupied. Please choose an open table.`, 'info');
+          return;
+        }
+
+        if (selectedTableNumbers.includes(num)) {
+          selectedTableNumbers = selectedTableNumbers.filter(n => n !== num);
+        } else {
+          selectedTableNumbers.push(num);
+        }
+
+        renderTableCards();
+        updateCapacityFulfillment();
+      });
+    });
   }
 
   function populateOrderReview() {
@@ -934,7 +1049,14 @@ function initCheckoutFlow() {
 
     if (typeLabel) typeLabel.textContent = orderType === 'DINE_IN' ? '🍽️ Dine In' : '🛍️ Takeaway';
     if (tableRow) tableRow.style.display = orderType === 'DINE_IN' ? 'block' : 'none';
-    if (tableNum) tableNum.textContent = `Table ${selectedTableNumber < 10 ? '0' + selectedTableNumber : selectedTableNumber}`;
+    if (tableNum) {
+      const sorted = [...selectedTableNumbers].sort((a, b) => a - b);
+      const label = sorted.length === 1
+        ? `Table ${sorted[0] < 10 ? '0' + sorted[0] : sorted[0]}`
+        : `Tables ${sorted.map(n => n < 10 ? '0' + n : n).join(' & ')}`;
+      const totalCap = calculateSelectedCapacity();
+      tableNum.textContent = `${label} (${totalCap} Seats · Party of ${selectedGuestCount})`;
+    }
     if (guestName) guestName.textContent = name;
     if (guestPhone) guestPhone.textContent = phone;
     if (payMethod) payMethod.textContent = paymentMethod === 'UPI' ? '⚡ UPI (Razorpay)' : '💵 Pay at Counter';
@@ -980,7 +1102,9 @@ function initCheckoutFlow() {
         customerName,
         customerPhone,
         orderType,
-        tableNumber: orderType === 'DINE_IN' ? selectedTableNumber : null,
+        tableNumber: orderType === 'DINE_IN' ? (selectedTableNumbers[0] || null) : null,
+        tableNumbers: orderType === 'DINE_IN' ? selectedTableNumbers : null,
+        guestCount: orderType === 'DINE_IN' ? selectedGuestCount : null,
         paymentMethod,
         notes,
         items,
@@ -1016,6 +1140,9 @@ function initCheckoutFlow() {
         orderToken: orderData.orderToken,
         orderType: orderData.orderType,
         tableNumber: orderData.tableNumber,
+        tableNumbers: orderData.tableNumbers || selectedTableNumbers,
+        tableLabel: orderData.tableLabel,
+        guestCount: orderData.guestCount || selectedGuestCount,
         total: orderData.total,
         paymentMethod: orderData.paymentMethod,
         createdAt: new Date().toISOString()
@@ -1288,7 +1415,7 @@ function openOrdersModal() {
             <div>
               <div style="font-weight: 800; font-size: 1.05rem; color: var(--color-text-primary);">${o.orderNumber}</div>
               <div style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 2px;">
-                ${o.orderType === 'DINE_IN' ? `🍽️ Table ${o.tableNumber}` : '🛍️ Takeaway'} · ${new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                ${o.orderType === 'DINE_IN' ? `🍽️ ${o.tableLabel || (o.tableNumbers && o.tableNumbers.length > 1 ? 'Tables ' + o.tableNumbers.join(' & ') : 'Table ' + o.tableNumber)}` : '🛍️ Takeaway'} · ${new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </div>
               <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-accent-ochre); margin-top: 4px;">
                 ₹${o.total} (${o.paymentMethod === 'UPI' ? 'Online UPI' : 'Pay at Counter'})

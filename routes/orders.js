@@ -172,6 +172,8 @@ router.post('/', async (req, res) => {
       customerPhone,
       orderType,
       tableNumber,
+      tableNumbers,
+      guestCount,
       paymentMethod = 'UPI',
       notes,
       items,
@@ -261,30 +263,89 @@ router.post('/', async (req, res) => {
 
     let validTableId = null;
     let validTableNumber = null;
+    let validTableNumbersStr = null;
+    let validGuestCount = guestCount ? parseInt(guestCount, 10) : 2;
+    if (isNaN(validGuestCount) || validGuestCount < 1) validGuestCount = 2;
 
     if (orderType === 'DINE_IN') {
-      const parsedTable = parseInt(tableNumber, 10);
-      if (isNaN(parsedTable) || parsedTable < 1) {
+      let inputTables = [];
+      if (Array.isArray(tableNumbers) && tableNumbers.length > 0) {
+        inputTables = tableNumbers.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+      } else if (typeof tableNumbers === 'string' && tableNumbers.trim()) {
+        inputTables = tableNumbers.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
+      } else if (tableNumber !== undefined && tableNumber !== null) {
+        const parsed = parseInt(tableNumber, 10);
+        if (!isNaN(parsed)) inputTables = [parsed];
+      }
+
+      // Deduplicate table numbers and sort
+      inputTables = Array.from(new Set(inputTables)).sort((a, b) => a - b);
+
+      if (inputTables.length === 0) {
         return res.status(400).json({
           success: false,
-          error: { code: 'TABLE_REQUIRED', message: 'Please select a valid table for dine-in.' }
+          error: { code: 'TABLE_REQUIRED', message: 'Please select at least one dining table for Dine-In.' }
         });
       }
 
-      const tableRow = await db.get(
-        'SELECT id, table_number FROM restaurant_tables WHERE table_number = ? AND active = 1',
-        [parsedTable]
+      if (inputTables.length > 5) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'TOO_MANY_TABLES', message: 'A maximum of 5 tables can be combined per order.' }
+        });
+      }
+
+      // Verify all tables exist and are active
+      let totalCombinedCapacity = 0;
+      const verifiedTables = [];
+      for (const tNum of inputTables) {
+        const tableRow = await db.get(
+          'SELECT id, table_number, label, capacity FROM restaurant_tables WHERE table_number = ? AND active = 1',
+          [tNum]
+        );
+        if (!tableRow) {
+          return res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_TABLE', message: `Table #${tNum} is not available.` }
+          });
+        }
+        totalCombinedCapacity += tableRow.capacity;
+        verifiedTables.push(tableRow);
+      }
+
+      // Check if any of the selected tables is already fully occupied
+      const activeOrders = await db.all(
+        `SELECT id, order_number, table_number, table_numbers, guest_count
+         FROM orders
+         WHERE order_type = 'DINE_IN'
+           AND status IN ('RECEIVED', 'CONFIRMED', 'PREPARING', 'READY')`
       );
 
-      if (!tableRow) {
-        return res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_TABLE', message: `Table ${parsedTable} is not available.` }
-        });
+      for (const tNum of inputTables) {
+        for (const ord of activeOrders) {
+          const associated = [];
+          if (ord.table_number) associated.push(ord.table_number);
+          if (ord.table_numbers) {
+            String(ord.table_numbers).split(',').forEach(s => {
+              const n = parseInt(s.trim(), 10);
+              if (!isNaN(n)) associated.push(n);
+            });
+          }
+          if (associated.includes(tNum)) {
+            return res.status(400).json({
+              success: false,
+              error: {
+                code: 'TABLE_OCCUPIED',
+                message: `Table #${tNum} is currently occupied by active order ${ord.order_number}. Please choose an open table.`
+              }
+            });
+          }
+        }
       }
 
-      validTableId = tableRow.id;
-      validTableNumber = tableRow.table_number;
+      validTableId = verifiedTables[0].id;
+      validTableNumber = verifiedTables[0].table_number;
+      validTableNumbersStr = verifiedTables.map(t => t.table_number).join(', ');
     }
 
     // 3. Validate Payment Method
@@ -382,9 +443,9 @@ router.post('/', async (req, res) => {
       await tx.run(
         `INSERT INTO orders (
           id, order_number, customer_name, customer_phone, order_type,
-          table_id, table_number, status, payment_status, payment_method,
+          table_id, table_number, table_numbers, guest_count, status, payment_status, payment_method,
           subtotal, tax, discount, total, notes, order_token, idempotency_key, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'RECEIVED', 'PAYMENT_PENDING', ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', 'PAYMENT_PENDING', ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
         [
           orderId,
           orderNumber,
@@ -393,6 +454,8 @@ router.post('/', async (req, res) => {
           orderType,
           validTableId,
           validTableNumber,
+          validTableNumbersStr,
+          validGuestCount,
           normalizedMethod,
           calculatedTotal,
           taxAmount,
@@ -487,12 +550,26 @@ router.post('/', async (req, res) => {
       });
     }
 
+    let tableLabel = null;
+    let tableNumbersArray = [];
+    if (validTableNumbersStr && validTableNumbersStr.includes(',')) {
+      tableNumbersArray = validTableNumbersStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      const parts = tableNumbersArray.map(n => n < 10 ? '0' + n : '' + n);
+      tableLabel = `Tables ${parts.join(' & ')}`;
+    } else if (validTableNumber) {
+      tableNumbersArray = [validTableNumber];
+      tableLabel = `Table ${validTableNumber < 10 ? '0' + validTableNumber : validTableNumber}`;
+    }
+
     notifyOrderChange({
       action: 'CREATED',
       orderId,
       orderNumber,
       orderType,
       tableNumber: validTableNumber,
+      tableNumbers: validTableNumbersStr,
+      tableLabel,
+      guestCount: validGuestCount,
       status: 'RECEIVED',
       paymentStatus: 'PAYMENT_PENDING',
       total: finalTotal
@@ -507,6 +584,9 @@ router.post('/', async (req, res) => {
         customerName: customerName.trim(),
         orderType,
         tableNumber: validTableNumber,
+        tableNumbers: tableNumbersArray,
+        tableLabel,
+        guestCount: validGuestCount,
         paymentMethod: normalizedMethod,
         paymentStatus: 'PAYMENT_PENDING',
         status: 'RECEIVED',
@@ -580,7 +660,7 @@ router.get('/:orderNumber', async (req, res) => {
     const clientToken = req.headers['x-order-token'] || req.query.token;
 
     const order = await db.get(
-      `SELECT id, order_number, customer_name, order_type, table_number,
+      `SELECT id, order_number, customer_name, order_type, table_number, table_numbers, guest_count,
               status, payment_status, payment_method, subtotal, tax, discount, total, notes,
               customer_utr, razorpay_order_id, order_token, created_at
        FROM orders
@@ -607,6 +687,17 @@ router.get('/:orderNumber', async (req, res) => {
     } else if (order.customer_name) {
       const parts = order.customer_name.trim().split(/\s+/);
       safeCustomerName = parts.map(p => p[0] + '***').join(' ');
+    }
+
+    let tableLabel = null;
+    let tableNumbersArray = [];
+    if (order.table_numbers && order.table_numbers.includes(',')) {
+      tableNumbersArray = order.table_numbers.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      const parts = tableNumbersArray.map(n => n < 10 ? '0' + n : '' + n);
+      tableLabel = `Tables ${parts.join(' & ')}`;
+    } else if (order.table_number) {
+      tableNumbersArray = [order.table_number];
+      tableLabel = `Table ${order.table_number < 10 ? '0' + order.table_number : order.table_number}`;
     }
 
     const items = await db.all(
@@ -651,6 +742,9 @@ router.get('/:orderNumber', async (req, res) => {
         customerName: safeCustomerName,
         orderType: order.order_type,
         tableNumber: order.table_number,
+        tableNumbers: tableNumbersArray,
+        tableLabel,
+        guestCount: order.guest_count || null,
         status: order.status,
         statusLabel: getStatusLabel(order.status, order.payment_status),
         stepIndex: getStepIndex(order.status),

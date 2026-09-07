@@ -1339,9 +1339,40 @@
 
         <!-- STEP 3: Table Selection (Only for Dine In) -->
         <div class="checkout-step-panel" id="step-panel-3">
-          <h4 class="step-panel-title">Select Your Table</h4>
-          <p class="step-panel-desc">Where are you seated in the roastery? Look for the number plate on your table.</p>
+          <h4 class="step-panel-title">Select Table(s) for Your Party</h4>
+          <p class="step-panel-desc">How many guests are dining? Select one table or combine multiple tables if you need more seats.</p>
           
+          <!-- Guest Count / Party Size Selector -->
+          <div class="guest-selector-container" style="margin-bottom: 1.15rem; background: var(--bg-card-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.55rem;">
+              <span style="font-size: 0.84rem; font-weight: 750; color: var(--color-text-primary);">Party Size:</span>
+              <span id="guest-count-display" style="font-size: 0.92rem; font-weight: 850; color: var(--color-accent-ochre);">2 Guests</span>
+            </div>
+            <div class="guest-pills-row" style="display: flex; gap: 0.4rem; flex-wrap: wrap;" id="guest-pills-row">
+              <button type="button" class="guest-pill" data-guests="1">1</button>
+              <button type="button" class="guest-pill is-active" data-guests="2">2</button>
+              <button type="button" class="guest-pill" data-guests="3">3</button>
+              <button type="button" class="guest-pill" data-guests="4">4</button>
+              <button type="button" class="guest-pill" data-guests="5">5</button>
+              <button type="button" class="guest-pill" data-guests="6">6</button>
+              <button type="button" class="guest-pill" data-guests="7">7</button>
+              <button type="button" class="guest-pill" data-guests="8">8+</button>
+            </div>
+          </div>
+
+          <!-- Live Capacity Fulfillment Summary Bar -->
+          <div id="capacity-fulfillment-bar" style="margin-bottom: 1.15rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.84rem; font-weight: 750; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; background: rgba(184, 93, 57, 0.08); border: 1px dashed var(--color-accent-ochre); color: var(--color-accent-ochre);">
+            <span>Please select a table to begin</span>
+            <span>0 Seats</span>
+          </div>
+
+          <!-- Real-Time Occupancy Legend -->
+          <div style="display: flex; gap: 0.9rem; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 0.9rem; flex-wrap: wrap;">
+            <span><strong style="color: #27ae60;">● 🟢 Fully Vacant:</strong> 100% open</span>
+            <span><strong style="color: #d97706;">● 🟡 Half Occupied:</strong> Open seats</span>
+            <span><strong style="color: #eb5757;">● 🔴 Occupied:</strong> Full</span>
+          </div>
+
           <div class="table-grid" id="checkout-tables-grid">
             <!-- Populated dynamically from /api/tables -->
             <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--color-text-muted);">

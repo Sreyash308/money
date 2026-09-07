@@ -194,7 +194,7 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
       });
     }
 
-    const order = await db.get('SELECT id, order_number, status, table_number, order_type, payment_status FROM orders WHERE id = ?', [id]);
+    const order = await db.get('SELECT id, order_number, status, table_number, table_numbers, guest_count, order_type, payment_status FROM orders WHERE id = ?', [id]);
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -206,7 +206,7 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
     await db.run('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', [status, now, id]);
 
     if (status === 'COMPLETED') {
-      console.log(`🧹 Table ${order.table_number ? '#' + order.table_number : 'N/A'} cleaned & order ${order.order_number} completed. Table is now VACANT.`);
+      console.log(`🧹 Table ${order.table_numbers || (order.table_number ? '#' + order.table_number : 'N/A')} cleaned & order ${order.order_number} completed. Table is now VACANT.`);
     } else {
       console.log(`📋 Order ${order.order_number} status updated to: ${status}`);
     }
@@ -219,6 +219,8 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
       previousStatus: order.status,
       paymentStatus: order.payment_status,
       tableNumber: order.table_number,
+      tableNumbers: order.table_numbers,
+      guestCount: order.guest_count,
       orderType: order.order_type,
       isTableVacant: status === 'COMPLETED' || status === 'CANCELLED'
     });
@@ -240,7 +242,7 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
 router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await db.get('SELECT id, order_number, payment_status, payment_method, status, table_number, order_type FROM orders WHERE id = ?', [id]);
+    const order = await db.get('SELECT id, order_number, payment_status, payment_method, status, table_number, table_numbers, guest_count, order_type FROM orders WHERE id = ?', [id]);
 
     if (!order) {
       return res.status(404).json({
@@ -280,6 +282,8 @@ router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
       status: newStatus,
       paymentStatus: 'PAID',
       tableNumber: order.table_number,
+      tableNumbers: order.table_numbers,
+      guestCount: order.guest_count,
       orderType: order.order_type
     });
 
@@ -462,7 +466,9 @@ router.patch('/products/:id/availability', requireAdmin, async (req, res) => {
       });
     }
 
-    const newAvailability = product.available === 1 ? 0 : 1;
+    const newAvailability = req.body.available !== undefined 
+      ? (req.body.available === 1 || req.body.available === true || req.body.available === '1' ? 1 : 0)
+      : (product.available === 1 ? 0 : 1);
     const now = new Date().toISOString();
 
     await db.run('UPDATE products SET available = ?, updated_at = ? WHERE id = ?', [newAvailability, now, id]);
@@ -515,21 +521,53 @@ router.get('/tables', requireAdmin, async (req, res) => {
     const tables = await db.all('SELECT * FROM restaurant_tables ORDER BY table_number ASC');
 
     const activeOrders = await db.all(
-      `SELECT table_number, order_number, customer_name, total
+      `SELECT id, order_number, customer_name, total, table_number, table_numbers, guest_count
        FROM orders
        WHERE order_type = 'DINE_IN'
          AND status IN ('RECEIVED', 'CONFIRMED', 'PREPARING', 'READY')`
     );
 
-    const activeMap = {};
+    const tableOrdersMap = {};
     for (const ord of activeOrders) {
-      if (ord.table_number) activeMap[ord.table_number] = ord;
+      const nums = [];
+      if (ord.table_number) nums.push(ord.table_number);
+      if (ord.table_numbers) {
+        String(ord.table_numbers).split(',').forEach(s => {
+          const n = parseInt(s.trim(), 10);
+          if (!isNaN(n) && !nums.includes(n)) nums.push(n);
+        });
+      }
+      for (const n of nums) {
+        tableOrdersMap[n] = {
+          ...ord,
+          isMultiTable: nums.length > 1,
+          linkedTables: nums
+        };
+      }
     }
 
-    const tablesData = tables.map(t => ({
-      ...t,
-      activeOrder: activeMap[t.table_number] || null
-    }));
+    const tablesData = tables.map(t => {
+      const act = tableOrdersMap[t.table_number] || null;
+      let occupiedSeats = 0;
+      if (act) {
+        occupiedSeats = act.guest_count ? Math.min(act.guest_count, t.capacity) : t.capacity;
+      }
+      const availableSeats = Math.max(0, t.capacity - occupiedSeats);
+      let occupancyStatus = 'FULLY_VACANT';
+      if (act) {
+        occupancyStatus = (availableSeats === 0 || occupiedSeats >= t.capacity) ? 'OCCUPIED' : 'HALF_OCCUPIED';
+      }
+
+      return {
+        ...t,
+        occupiedSeats,
+        availableSeats,
+        occupancyStatus,
+        isOccupied: occupancyStatus === 'OCCUPIED',
+        isHalfOccupied: occupancyStatus === 'HALF_OCCUPIED',
+        activeOrder: act
+      };
+    });
 
     res.json({ success: true, data: tablesData });
   } catch (err) {
@@ -581,38 +619,50 @@ router.post('/tables', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/tables/:tableNumber/vacate - Clean and vacate table, completing any active dine-in orders
+// POST /api/admin/tables/:tableNumber/vacate - Clean and vacate table, completing any active dine-in orders (including linked multi-tables)
 router.post('/tables/:tableNumber/vacate', requireAdmin, async (req, res) => {
   try {
     const { tableNumber } = req.params;
     const num = parseInt(tableNumber, 10);
     const now = new Date().toISOString();
 
-    const activeOrders = await db.all(
-      `SELECT id, order_number FROM orders
-       WHERE table_number = ? AND order_type = 'DINE_IN'
-         AND status IN ('RECEIVED', 'CONFIRMED', 'PREPARING', 'READY')`,
-      [num]
+    const allActive = await db.all(
+      `SELECT id, order_number, table_number, table_numbers FROM orders
+       WHERE order_type = 'DINE_IN'
+         AND status IN ('RECEIVED', 'CONFIRMED', 'PREPARING', 'READY')`
     );
 
-    for (const ord of activeOrders) {
+    const affectedOrders = allActive.filter(ord => {
+      const nums = [];
+      if (ord.table_number) nums.push(ord.table_number);
+      if (ord.table_numbers) {
+        String(ord.table_numbers).split(',').forEach(s => {
+          const n = parseInt(s.trim(), 10);
+          if (!isNaN(n)) nums.push(n);
+        });
+      }
+      return nums.includes(num);
+    });
+
+    for (const ord of affectedOrders) {
       await db.run('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', ['COMPLETED', now, ord.id]);
       notifyOrderChange({
         action: 'STATUS_UPDATED',
         orderId: ord.id,
         orderNumber: ord.order_number,
         status: 'COMPLETED',
-        tableNumber: num,
+        tableNumber: ord.table_number,
+        tableNumbers: ord.table_numbers,
         isTableVacant: true
       });
     }
 
-    console.log(`🧹 Table #${num} cleaned & vacated (${activeOrders.length} active order(s) completed)`);
+    console.log(`🧹 Table #${num} cleaned & vacated (${affectedOrders.length} active order(s) completed)`);
 
     res.json({
       success: true,
       message: `Table ${num} cleaned and vacated.`,
-      vacatedOrders: activeOrders.map(o => o.order_number)
+      vacatedOrders: affectedOrders.map(o => o.order_number)
     });
   } catch (err) {
     console.error('Error vacating table:', err);

@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS orders (
   order_type TEXT NOT NULL,
   table_id TEXT,
   table_number INTEGER,
+  table_numbers TEXT,
+  guest_count INTEGER DEFAULT 2,
   status TEXT NOT NULL DEFAULT 'RECEIVED',
   payment_status TEXT NOT NULL DEFAULT 'PENDING',
   payment_method TEXT NOT NULL,

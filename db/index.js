@@ -186,6 +186,12 @@ async function initDb() {
         if (!columnNames.includes('idempotency_key')) {
           sqliteDb.exec("ALTER TABLE orders ADD COLUMN idempotency_key TEXT;");
         }
+        if (!columnNames.includes('table_numbers')) {
+          sqliteDb.exec("ALTER TABLE orders ADD COLUMN table_numbers TEXT;");
+        }
+        if (!columnNames.includes('guest_count')) {
+          sqliteDb.exec("ALTER TABLE orders ADD COLUMN guest_count INTEGER DEFAULT 2;");
+        }
       }
     } catch (migErr) {
       console.warn('Migration note:', migErr.message);

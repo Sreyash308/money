@@ -2435,40 +2435,109 @@ button {
   padding-right: 0.2rem;
 }
 
+.guest-pill {
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.guest-pill:hover {
+  border-color: var(--color-accent-ochre);
+}
+
+.guest-pill.is-active {
+  background: var(--color-accent-ochre);
+  color: #fff;
+  border-color: var(--color-accent-ochre);
+}
+
 .table-card {
+  position: relative;
   border: 1.5px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 0.8rem 0.6rem;
+  padding: 0.85rem 0.65rem;
   text-align: center;
   cursor: pointer;
   background-color: var(--bg-card);
   transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 86px;
 }
 
 .table-card:hover {
   border-color: var(--color-accent-ochre);
+  transform: translateY(-1px);
 }
 
-.table-card.is-selected {
-  border-color: var(--color-accent-ochre);
-  background-color: var(--color-accent-ochre-light);
+.table-card.state-vacant {
+  border-top: 3px solid #27ae60;
 }
 
-.table-card.is-occupied {
+.table-card.state-half {
+  border-top: 3px solid #f2994a;
+}
+
+.table-card.state-occupied {
+  border-top: 3px solid #eb5757;
   opacity: 0.55;
   cursor: not-allowed;
   background-color: #faf9f7;
 }
 
+.table-card.is-selected {
+  border-color: var(--color-accent-ochre);
+  background-color: var(--color-accent-ochre-light);
+  box-shadow: 0 0 0 2px var(--color-accent-ochre);
+}
+
+.table-card.is-recommended:not(.is-selected):not(.state-occupied) {
+  border-color: rgba(184, 93, 57, 0.6);
+  background: #fdfaf8;
+}
+
+.table-card-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.badge-vacant {
+  background: rgba(39, 174, 96, 0.12);
+  color: #27ae60;
+}
+
+.badge-half {
+  background: rgba(242, 153, 74, 0.15);
+  color: #d97706;
+}
+
+.badge-occupied {
+  background: rgba(235, 87, 87, 0.12);
+  color: #eb5757;
+}
+
 .table-card-num {
   font-size: 1.05rem;
-  font-weight: 800;
+  font-weight: 850;
   color: var(--color-text-primary);
 }
 
 .table-card-meta {
   font-size: 0.72rem;
   color: var(--color-text-muted);
+  margin-top: 2px;
 }
 
 /* Order Review Summary */

@@ -1037,7 +1037,7 @@
                 <div class="order-num-tag">${ord.order_number}</div>
                 <div style="font-size: 0.82rem; font-weight: 700; color: #fff; margin-top: 2px;">
                   ${ord.order_type === 'DINE_IN' 
-                    ? `🍽️ Table ${ord.table_number < 10 ? '0' + ord.table_number : ord.table_number}` 
+                    ? `🍽️ ${ord.table_label || (ord.table_numbers ? 'Tables ' + ord.table_numbers : 'Table ' + (ord.table_number < 10 ? '0' + ord.table_number : ord.table_number))}${ord.guest_count ? ` · Party of ${ord.guest_count}` : ''}` 
                     : '🛍️ Takeaway'}
                 </div>
               </div>
@@ -1399,34 +1399,49 @@
       const container = document.getElementById('admin-tables-container');
       if (!container) return;
 
-      container.innerHTML = tables.map(tbl => `
-        <div class="stat-card" style="border-left: 4px solid ${tbl.activeOrder ? '#eb5757' : '#27ae60'};">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h4 style="font-size: 1.15rem; font-weight: 800; color: #fff;">${tbl.label}</h4>
-            <span class="admin-badge" style="background: ${tbl.activeOrder ? '#eb5757' : '#27ae60'};">
-              ${tbl.activeOrder ? 'OCCUPIED' : 'VACANT'}
-            </span>
-          </div>
-          <div style="font-size: 0.84rem; color: var(--admin-text-muted);">
-            Capacity: <strong>${tbl.capacity} Seats</strong>
-          </div>
-          ${tbl.activeOrder ? `
-            <div style="margin-top: 0.75rem; padding: 0.6rem 0.75rem; background: rgba(235,87,87,0.1); border-radius: 6px; font-size: 0.82rem; color: #fff;">
-              Active Order: <strong>${tbl.activeOrder.order_number}</strong> (${tbl.activeOrder.customer_name})<br>
-              Total: <strong>₹${tbl.activeOrder.total}</strong>
-              <div style="margin-top: 0.6rem;">
-                <button class="btn btn-sm" style="width: 100%; background: #2f80ed; color: #fff; font-size: 0.78rem; padding: 0.4rem 0.6rem; border-radius: 4px;" onclick="vacateTable('${tbl.table_number}')">
-                  🧹 Table Cleaned · Vacate Table
-                </button>
+      container.innerHTML = tables.map(tbl => {
+        const isOcc = tbl.occupancyStatus === 'OCCUPIED' || (!tbl.occupancyStatus && tbl.activeOrder);
+        const isHalf = tbl.occupancyStatus === 'HALF_OCCUPIED';
+        const isVacant = tbl.occupancyStatus === 'FULLY_VACANT' || (!isOcc && !isHalf);
+
+        const borderColor = isOcc ? '#eb5757' : (isHalf ? '#f2994a' : '#27ae60');
+        const badgeBg = isOcc ? '#eb5757' : (isHalf ? '#f2994a' : '#27ae60');
+        const badgeLabel = isOcc ? '🔴 OCCUPIED' : (isHalf ? `🟡 HALF OCCUPIED (${tbl.availableSeats || 0} Open)` : '🟢 FULLY VACANT');
+
+        return `
+          <div class="stat-card" style="border-left: 4px solid ${borderColor};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="font-size: 1.15rem; font-weight: 800; color: #fff;">${tbl.label}</h4>
+              <span class="admin-badge" style="background: ${badgeBg}; font-size: 0.72rem;">
+                ${badgeLabel}
+              </span>
+            </div>
+            <div style="font-size: 0.84rem; color: var(--admin-text-muted);">
+              Capacity: <strong>${tbl.capacity} Seats</strong> &bull; Available: <strong style="color: ${tbl.availableSeats > 0 ? '#27ae60' : '#eb5757'};">${tbl.availableSeats != null ? tbl.availableSeats : (tbl.activeOrder ? 0 : tbl.capacity)} Open</strong>
+            </div>
+            ${tbl.activeOrder ? `
+              <div style="margin-top: 0.75rem; padding: 0.6rem 0.75rem; background: rgba(235,87,87,0.1); border-radius: 6px; font-size: 0.82rem; color: #fff;">
+                Active Order: <strong>${tbl.activeOrder.order_number}</strong> (${tbl.activeOrder.customer_name || 'Guest'})${tbl.activeOrder.guest_count ? ` &bull; Party of ${tbl.activeOrder.guest_count}` : ''}<br>
+                Total: <strong>₹${tbl.activeOrder.total}</strong>
+                ${tbl.activeOrder.isMultiTable ? `
+                  <div style="margin-top: 4px; color: #f2994a; font-weight: 700; font-size: 0.78rem;">
+                    🔗 Combined Order: Tables ${tbl.activeOrder.linkedTables.join(', ')}
+                  </div>
+                ` : ''}
+                <div style="margin-top: 0.6rem;">
+                  <button class="btn btn-sm" style="width: 100%; background: #2f80ed; color: #fff; font-size: 0.78rem; padding: 0.4rem 0.6rem; border-radius: 4px;" onclick="vacateTable('${tbl.table_number}')">
+                    🧹 Table Cleaned · Vacate ${tbl.activeOrder.isMultiTable ? `(All Linked Tables)` : 'Table'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ` : `
-            <div style="margin-top: 0.75rem; font-size: 0.84rem; color: #27ae60; font-weight: 750;">
-              🟢 Ready for next guest (Vacant)
-            </div>
-          `}
-        </div>
-      `).join('');
+            ` : `
+              <div style="margin-top: 0.75rem; font-size: 0.84rem; color: #27ae60; font-weight: 750;">
+                🟢 Ready for next guest (Vacant)
+              </div>
+            `}
+          </div>
+        `;
+      }).join('');
     }
 
     async function vacateTable(tableNumber) {
