@@ -697,8 +697,10 @@
       if (payEl) {
         if (order.paymentStatus === 'PAID') {
           payEl.innerHTML = '<span style="color: var(--color-veg); font-weight: 800;">✓ PAID (' + order.paymentMethod + ')</span>';
+        } else if (order.paymentMethod === 'RAZORPAY') {
+          payEl.innerHTML = '<span style="color: #c97a14; font-weight: 800;">⏳ PENDING (Razorpay Checkout)</span>';
         } else if (order.paymentMethod === 'UPI') {
-          payEl.innerHTML = '<span style="color: #c97a14; font-weight: 800;">⏳ PENDING (UPI Staff Verification)</span>';
+          payEl.innerHTML = '<span style="color: #c97a14; font-weight: 800;">⏳ PENDING (Online Checkout)</span>';
         } else {
           payEl.innerHTML = '<span style="color: #c97a14; font-weight: 800;">⏳ PENDING (Pay at Counter)</span>';
         }
@@ -711,10 +713,9 @@
           instEl.textContent = order.orderType === 'DINE_IN'
             ? `You are seated at ${tableDisplay}${partyText}. Your payment is confirmed. Our barista team will bring your items to you shortly.`
             : 'Your payment is confirmed. Please pick up your items at the front counter when ready.';
-        } else if (order.paymentMethod === 'UPI') {
+        } else if (order.paymentMethod === 'RAZORPAY' || order.paymentMethod === 'UPI') {
           instEl.innerHTML = `
-            <strong>UPI Transfer Pending:</strong> Please transfer <strong>₹${order.total}</strong> to UPI ID <code>9182916879@ybl</code>.
-            Once our staff verifies the incoming payment on the counter terminal, your order will begin preparing.
+            <strong>Payment Pending:</strong> Complete your payment online via Razorpay Standard Checkout, or settle with our cashier at the counter.
           `;
         } else {
           instEl.innerHTML = `
@@ -723,9 +724,9 @@
         }
       }
 
-      // 6. UPI Payment & UTR Submission Section (Only if UPI & Pending)
+      // 6. Online Payment Section (Razorpay Standard Web Checkout)
       let upiBox = document.getElementById('live-upi-container');
-      if (order.paymentMethod === 'UPI' && !isPaid) {
+      if ((order.paymentMethod === 'RAZORPAY' || order.paymentMethod === 'UPI') && !isPaid) {
         if (!upiBox) {
           upiBox = document.createElement('div');
           upiBox.id = 'live-upi-container';
@@ -733,86 +734,84 @@
         }
 
         const payment = order.payment || {};
-        const vpa = payment.destinationVpa || '9182916879@ybl';
-        const upiUri = payment.upiUri || `upi://pay?pa=${vpa}&pn=Ochre%20Coffee%20Roasters&am=${order.total.toFixed(2)}&cu=INR&tr=${order.orderNumber}&tn=Order%20${order.orderNumber}`;
 
         upiBox.innerHTML = `
-          <div style="background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 1.5rem 1.2rem; border: 1px solid var(--border-subtle); margin-bottom: 2rem; text-align: center;">
+          <div style="background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 1.6rem 1.2rem; border: 1px solid var(--border-subtle); margin-bottom: 2rem; text-align: center;">
             <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); font-weight: 700; margin-bottom: 0.2rem;">
               Amount Due
             </div>
-            <div style="font-size: 2rem; font-weight: 850; color: var(--color-accent-ochre); margin-bottom: 1.2rem;">
+            <div style="font-size: 2.2rem; font-weight: 850; color: var(--color-accent-ochre); margin-bottom: 1.2rem;">
               ₹${order.total}
             </div>
 
-            ${payment.razorpayOrderId && payment.razorpayKeyId ? `
-              <div style="margin-bottom: 1.5rem;">
-                <button type="button" id="btn-live-razorpay" class="btn btn-primary" style="width: 100%; max-width: 400px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.95rem; font-size: 0.95rem; font-weight: 800; min-height: 48px; box-shadow: 0 4px 14px rgba(184, 93, 57, 0.35);">
-                  <span>⚡</span><span>Pay Online with Razorpay / UPI App</span>
-                </button>
-                <div style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 0.5rem;">
-                  Instant automated verification · GPay, PhonePe, Paytm & Cards
-                </div>
+            <div style="margin-bottom: 1.25rem;">
+              <button type="button" id="btn-live-razorpay" class="btn btn-primary" style="width: 100%; max-width: 400px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.95rem; font-size: 1rem; font-weight: 800; min-height: 48px; box-shadow: 0 4px 14px rgba(184, 93, 57, 0.35);">
+                <span>💳</span><span>Pay Online with Razorpay</span>
+              </button>
+              <div style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 0.5rem;">
+                UPI (GPay, PhonePe, Paytm), Cards (Visa, MC, RuPay), NetBanking &amp; Wallets
               </div>
-
-              <div style="display: flex; align-items: center; gap: 0.8rem; max-width: 400px; margin: 0 auto 1.4rem;">
-                <div style="flex: 1; height: 1px; background: var(--border-medium);"></div>
-                <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--color-text-muted); letter-spacing: 0.05em;">Or Direct UPI</span>
-                <div style="flex: 1; height: 1px; background: var(--border-medium);"></div>
-              </div>
-            ` : ''}
-
-            ${payment.qrDataUrl ? `
-              <div style="background: #fff; padding: 0.75rem; border-radius: 8px; display: inline-block; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
-                <img src="${payment.qrDataUrl}" alt="UPI QR Code" style="width: 180px; height: 180px; display: block;">
-              </div>
-            ` : ''}
-
-            <div style="font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 0.8rem;">
-              UPI ID: <strong style="color: var(--color-accent-ochre);">${vpa}</strong>
             </div>
 
-            <a href="${upiUri}" class="btn btn-secondary btn-sm" style="margin-bottom: 1.25rem; display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none; min-height: 44px; padding: 0.5rem 1.2rem;">
-              <span>📱</span><span>Open in UPI App</span>
-            </a>
-
-            <!-- UTR Input Form -->
-            <div style="background: #ffffff; border-radius: 8px; padding: 1rem 1.2rem; border: 1px solid var(--border-subtle); text-align: left; max-width: 440px; margin: 0 auto;">
-              <div style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: 0.3rem;">
-                Already transferred directly? Enter 12-Digit UTR
-              </div>
-              <p style="font-size: 0.76rem; color: var(--color-text-muted); margin-bottom: 0.6rem;">
-                Entering your UPI transaction reference allows our staff to verify your payment at the counter.
-              </p>
-
-              ${order.customerUtr ? `
-                <div style="padding: 0.5rem 0.75rem; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.82rem; font-weight: 700;">
-                  ✓ Submitted UTR: <code>${order.customerUtr}</code> (Pending Staff Approval)
-                </div>
-              ` : `
-                <form id="utr-submit-form" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                  <input type="text" id="utr-input" placeholder="e.g. 423589123456" maxlength="25" required style="flex: 1; min-width: 160px; min-height: 44px; padding: 0.5rem 0.75rem; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); font-size: 0.85rem;">
-                  <button type="submit" class="btn btn-secondary btn-sm" id="btn-utr-submit" style="min-height: 44px; padding: 0.5rem 1.2rem;">Submit</button>
-                </form>
-                <div id="utr-feedback" style="display: none; font-size: 0.78rem; margin-top: 0.4rem; font-weight: 600;"></div>
-              `}
+            <div style="padding: 0.75rem 1rem; background: #ffffff; border-radius: 8px; border: 1px dashed var(--border-medium); max-width: 400px; margin: 0 auto; font-size: 0.82rem; color: var(--color-text-secondary);">
+              Prefer to pay in person? Settle with Cash or Card at the front counter: <strong>Order #${order.orderNumber}</strong>
             </div>
+
+            ${order.customerUtr ? `
+              <div style="margin-top: 1rem; padding: 0.5rem 0.75rem; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.82rem; font-weight: 700;">
+                ✓ Submitted UTR: <code>${order.customerUtr}</code> (Pending Staff Approval)
+              </div>
+            ` : ''}
           </div>
         `;
 
         // Wire up live Razorpay checkout
         const rzpBtn = document.getElementById('btn-live-razorpay');
-        if (rzpBtn && window.Razorpay && payment.razorpayOrderId && payment.razorpayKeyId) {
-          rzpBtn.onclick = () => {
+        if (rzpBtn && window.Razorpay) {
+          rzpBtn.onclick = async () => {
+            let rzpOrderId = payment.razorpayOrderId;
+            let keyId = payment.razorpayKeyId;
+
+            if (!rzpOrderId || !keyId) {
+              try {
+                rzpBtn.disabled = true;
+                rzpBtn.textContent = 'Initializing payment...';
+                const cRes = await fetch('/api/create-order', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    amount: Math.round(order.total * 100),
+                    currency: 'INR',
+                    receipt: order.orderNumber,
+                    orderNumber: order.orderNumber
+                  })
+                });
+                const cJson = await cRes.json();
+                if (cJson.success && (cJson.order_id || cJson.id)) {
+                  rzpOrderId = cJson.order_id || cJson.id;
+                  keyId = cJson.key_id || keyId;
+                } else {
+                  alert(cJson.error?.message || 'Could not initiate Razorpay order.');
+                  rzpBtn.disabled = false;
+                  rzpBtn.innerHTML = '<span>⚡</span><span>Retry Payment</span>';
+                  return;
+                }
+              } catch (e) {
+                alert('Payment gateway unreachable. Please try again.');
+                rzpBtn.disabled = false;
+                rzpBtn.innerHTML = '<span>⚡</span><span>Retry Payment</span>';
+                return;
+              }
+            }
+
             const options = {
-              key: payment.razorpayKeyId,
+              key: keyId,
               amount: payment.amountInPaise || Math.round(order.total * 100),
               currency: payment.currency || 'INR',
               name: 'Ochre Coffee Roasters',
               description: `Payment for Order #${order.orderNumber}`,
-              order_id: payment.razorpayOrderId,
+              order_id: rzpOrderId,
               notes: {
-                destinationVpa: '9182916879@ybl',
                 orderNumber: order.orderNumber
               },
               prefill: {

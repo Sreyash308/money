@@ -1181,11 +1181,11 @@ function initCheckoutFlow() {
         return;
       }
 
-      // Handle Direct UPI
-      if (paymentMethod === 'UPI') {
+      // Handle Online Payment (Razorpay Standard Web Checkout)
+      if (paymentMethod === 'UPI' || paymentMethod === 'RAZORPAY') {
         OchreCart.clearCart();
         closeCheckoutModal();
-        showRealUpiModal(orderData);
+        launchRazorpayCheckout(orderData);
         return;
       }
 
@@ -1229,22 +1229,31 @@ function initCheckoutFlow() {
           rzpOrderId = rzpJson.order_id || rzpJson.id;
           keyId = rzpJson.key_id || keyId;
         } else {
-          showToast(rzpJson.error?.message || 'Unable to create Razorpay order. Switching to direct UPI.', 'error');
-          showRealUpiModal(orderData);
+          showToast(rzpJson.error?.message || 'Unable to create Razorpay payment order. Settle at counter or retry.', 'error');
+          const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+          setTimeout(() => {
+            window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
+          }, 1200);
           return;
         }
       } catch (err) {
         console.warn('Error calling /api/create-order:', err);
-        showToast('Razorpay service unreachable. You can complete payment with direct UPI.', 'error');
-        showRealUpiModal(orderData);
+        showToast('Payment gateway unreachable. Settle at counter or retry.', 'error');
+        const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+        setTimeout(() => {
+          window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
+        }, 1200);
         return;
       }
     }
 
     // STEP 2: Checkout Modal Launch
     if (typeof Razorpay === 'undefined') {
-      showToast('Razorpay Checkout SDK not loaded. Showing direct UPI modal.', 'error');
-      showRealUpiModal(orderData);
+      showToast('Payment SDK loading... opening order tracker.', 'info');
+      const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+      setTimeout(() => {
+        window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
+      }, 1000);
       return;
     }
 
@@ -1264,8 +1273,7 @@ function initCheckoutFlow() {
         contact: customerPhone
       },
       notes: {
-        orderNumber: orderData.orderNumber,
-        destinationVpa: payment.destinationVpa || '9182916879@ybl'
+        orderNumber: orderData.orderNumber
       },
       theme: {
         color: '#b85d39'
@@ -1330,8 +1338,9 @@ function initCheckoutFlow() {
       });
       rzpInstance.open();
     } catch (e) {
-      console.warn('Could not launch Razorpay modal, falling back to UPI modal:', e);
-      showRealUpiModal(orderData);
+      console.warn('Could not launch Razorpay modal:', e);
+      const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+      window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
     }
   }
 
