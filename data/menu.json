@@ -1,5 +1,5 @@
 {
-  "last_synced_at": "2026-09-08T20:14:22.526Z",
+  "last_synced_at": "2026-09-08T20:35:08.703Z",
   "categories": [
     {
       "id": "cat_coffee",
@@ -57,7 +57,7 @@
       "name": "Hazelnut Mocha",
       "slug": "hazelnut-mocha",
       "description": "Rich Valrhona dark cocoa blended with toasted hazelnut puree and espresso.",
-      "price": 199,
+      "price": 1,
       "image_url": "assets/coffee_mug.png",
       "category_id": "cat_coffee",
       "is_veg": 1,
