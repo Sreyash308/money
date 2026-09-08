@@ -1,7 +1,49 @@
 {
-  "updated_at": "2026-09-08T20:34:47.188Z",
+  "updated_at": "2026-09-08T20:54:00.202Z",
   "last_reset_at": null,
   "orders": [
+    {
+      "id": "ord_d223779f-98a7-4324-99f6-75e72ed76057",
+      "order_number": "CAF-1002",
+      "customer_name": "Ananya Sharma",
+      "customer_phone": "9876543210",
+      "order_type": "TAKEAWAY",
+      "table_id": null,
+      "table_number": null,
+      "table_numbers": null,
+      "guest_count": 2,
+      "status": "CANCELLED",
+      "payment_status": "PAID",
+      "payment_method": "UPI",
+      "subtotal": 397,
+      "tax": 0,
+      "discount": 0,
+      "total": 397,
+      "notes": null,
+      "order_token": "6528d8c4a58b01df7e1d2285ad056ab31933cf381ccad678",
+      "idempotency_key": "test_key_f0c5f216-42cc-4c1c-b5ea-c642db0fc2fb",
+      "customer_utr": "423589123456",
+      "razorpay_order_id": "order_TZgEi0IWEPK2lk",
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-08T20:49:16.138Z",
+      "updated_at": "2026-09-08T20:54:00.098Z",
+      "items": [
+        {
+          "productId": "prod_spanish_cold_brew",
+          "name": "Spanish Cold Brew",
+          "unitPrice": 199,
+          "quantity": 1,
+          "subtotal": 199
+        },
+        {
+          "productId": "prod_chocolate_brownie",
+          "name": "Fudgy Chocolate Brownie",
+          "unitPrice": 99,
+          "quantity": 2,
+          "subtotal": 198
+        }
+      ]
+    },
     {
       "id": "ord_b4c65ee0-daad-4370-a520-f79e005fc1b9",
       "order_number": "CAF-1002",
