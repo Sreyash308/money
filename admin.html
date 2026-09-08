@@ -420,6 +420,219 @@
       z-index: 1000;
       padding: 1rem;
     }
+
+    /* Table responsive container */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: var(--radius-md);
+    }
+
+    /* ==========================================================================
+       ADMIN RESPONSIVE BREAKPOINTS (Mobile & Tablet)
+       ========================================================================== */
+    @media (max-width: 1024px) {
+      .admin-navbar {
+        padding: 0.75rem 1.25rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .admin-brand {
+        flex: 1;
+      }
+
+      .admin-user-controls {
+        order: 2;
+      }
+
+      .admin-tabs {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding: 0.35rem 0;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+
+      .admin-tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .admin-tab-btn {
+        flex-shrink: 0;
+      }
+
+      .admin-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .admin-main-content {
+        padding: 1.25rem 1rem calc(2rem + env(safe-area-inset-bottom)) !important;
+      }
+
+      .admin-navbar {
+        padding: 0.65rem 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .admin-brand {
+        font-size: 0.95rem;
+      }
+
+      .admin-brand a span:last-child {
+        font-size: 0.92rem;
+      }
+
+      #btn-sync-git {
+        padding: 0.3rem 0.6rem !important;
+        font-size: 0.75rem !important;
+      }
+
+      #user-display {
+        display: none; /* Hide verbose email on small screens to save space */
+      }
+
+      #logout-btn {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.78rem;
+        min-height: 36px;
+      }
+
+      .admin-tab-btn {
+        padding: 0.45rem 0.85rem;
+        font-size: 0.82rem;
+        min-height: 40px;
+      }
+
+      /* Stats 2-column */
+      .admin-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .stat-card {
+        padding: 1rem 1.1rem;
+      }
+
+      .stat-card-value {
+        font-size: 1.45rem;
+      }
+
+      .stat-card-label {
+        font-size: 0.72rem;
+      }
+
+      /* Orders Toolbar */
+      .orders-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.85rem;
+      }
+
+      .order-filters-group {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 0.35rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0.4rem;
+        display: flex;
+      }
+
+      .order-filters-group::-webkit-scrollbar {
+        display: none;
+      }
+
+      .filter-pill {
+        flex-shrink: 0;
+        padding: 0.45rem 0.85rem;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .orders-actions-group {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        gap: 0.5rem;
+      }
+
+      #order-search-input {
+        width: 100% !important;
+        min-height: 44px;
+        font-size: 16px !important;
+      }
+
+      .orders-actions-group .btn {
+        width: 100%;
+        min-height: 42px;
+        justify-content: center;
+      }
+
+      /* Orders Queue - 1-Column Stacking */
+      .orders-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem;
+      }
+
+      .admin-order-card {
+        width: 100%;
+      }
+
+      .admin-order-head {
+        padding: 0.85rem 1rem;
+      }
+
+      .admin-order-body {
+        padding: 0.9rem 1rem;
+      }
+
+      .admin-order-footer {
+        padding: 0.85rem 1rem;
+      }
+
+      .action-btns-row {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .action-btns-row .btn {
+        width: 100%;
+        min-height: 44px;
+      }
+
+      /* Panel header row */
+      .panel-header-row {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 0.85rem;
+      }
+
+      .panel-header-row .btn {
+        width: 100%;
+        min-height: 44px;
+      }
+    }
+
+    @media (max-width: 400px) {
+      .admin-stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #sync-git-text {
+        display: none; /* Only show the green dot on ultra-compact screens */
+      }
+    }
   </style>
 </head>
 <body class="admin-body">
@@ -490,7 +703,7 @@
       </button>
     </nav>
 
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <div class="admin-user-controls" style="display: flex; align-items: center; gap: 0.75rem;">
       <div id="btn-sync-git" title="Every change in the Admin Portal automatically commits and syncs to GitHub. Click to verify live connection." style="border: 1px solid rgba(39, 174, 96, 0.4); background: rgba(39, 174, 96, 0.12); color: #27ae60; border-radius: 20px; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; user-select: none;">
         <span id="sync-status-dot" style="width: 8px; height: 8px; background: #27ae60; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px rgba(39, 174, 96, 0.6);"></span>
         <span id="sync-git-text">Auto-Sync Active (GitHub)</span>
@@ -503,7 +716,7 @@
   <!-- ==========================================================================
        MAIN DASHBOARD CONTENT
        ========================================================================== -->
-  <main style="max-width: 1360px; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; flex: 1;">
+  <main class="admin-main-content" style="max-width: 1360px; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; flex: 1;">
     
     <!-- Top Stats Bar -->
     <div class="admin-stats-grid">
@@ -537,7 +750,7 @@
           <button class="filter-pill" data-filter-status="COMPLETED">⚪ Completed <span class="pill-count-badge" id="count-pill-completed" style="display:none;"></span></button>
         </div>
 
-        <div style="display: flex; gap: 0.6rem; align-items: center;">
+        <div class="orders-actions-group" style="display: flex; gap: 0.6rem; align-items: center;">
           <input type="text" id="order-search-input" placeholder="Search order #, guest, phone..." 
                  class="checkout-input" style="background: var(--admin-card); color: #fff; border-color: var(--admin-border); width: 250px; padding: 0.45rem 0.9rem; font-size: 0.85rem;">
           <button class="btn btn-secondary btn-sm" onclick="debouncedFetchOrders(false, 0)" style="border-color: var(--admin-border); color: #fff;">↻ Refresh</button>
@@ -552,7 +765,7 @@
 
     <!-- TAB 2: MENU MANAGEMENT -->
     <section id="panel-menu" class="admin-tab-panel" style="display: none;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <div class="panel-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
         <div>
           <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 0.2rem;">Menu Items &amp; Availability</h2>
           <p style="font-size: 0.85rem; color: var(--admin-text-muted);">Toggle items immediately on/off when out of stock. Changes take effect on the customer site instantly.</p>
@@ -560,21 +773,23 @@
         <button class="btn btn-primary btn-sm" id="btn-add-product">+ Add Product</button>
       </div>
 
-      <table class="menu-table">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Category</th>
-            <th>Price</th>
-            <th>Dietary</th>
-            <th>Stock Status / Sold Out</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="admin-menu-table-body">
-          <!-- Populated from /api/admin/products -->
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="menu-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Dietary</th>
+              <th>Stock Status / Sold Out</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admin-menu-table-body">
+            <!-- Populated from /api/admin/products -->
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <!-- TAB 3: TABLES -->
