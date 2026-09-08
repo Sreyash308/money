@@ -96,7 +96,6 @@ const OchreCart = (() => {
         quantity: 1
       });
     }
-    showToast(`Added "${product.name}" to cart`, 'success');
     save();
   }
 
