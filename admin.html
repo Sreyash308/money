@@ -278,6 +278,36 @@
       flex-wrap: wrap;
     }
 
+    .order-workflow-stepper {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-bottom: 0.85rem;
+      padding: 0.35rem 0.6rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .order-workflow-stepper .step-pill {
+      color: var(--admin-text-muted);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .order-workflow-stepper .step-pill.active {
+      color: #fff;
+      background: var(--color-accent-ochre);
+    }
+    .order-workflow-stepper .step-pill.done {
+      color: #27ae60;
+    }
+    .order-workflow-stepper .step-arrow {
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 0.7rem;
+    }
+
     /* Menu Management Table */
     .menu-table {
       width: 100%;
@@ -1124,6 +1154,14 @@
         const isPaid = ord.payment_status === 'PAID';
         const isUpi = ord.payment_method === 'UPI';
 
+        // Stepper states
+        const isReceivedDone = ['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'].includes(ord.status);
+        const isPreparingActive = ord.status === 'PREPARING';
+        const isPreparingDone = ['READY', 'COMPLETED'].includes(ord.status);
+        const isReadyActive = ord.status === 'READY';
+        const isReadyDone = ord.status === 'COMPLETED';
+        const isCompletedActive = ord.status === 'COMPLETED';
+
         return `
           <div class="admin-order-card ${statusClass}" id="ord-card-${ord.id}">
             <div class="admin-order-head">
@@ -1141,13 +1179,24 @@
                   ${isPaid 
                     ? `✓ PAID (${ord.payment_method})` 
                     : isUpi 
-                      ? '⏳ UPI - PENDING VERIFICATION' 
+                      ? '⏳ UPI - PENDING' 
                       : '⏳ COUNTER - UNPAID'}
                 </div>
               </div>
             </div>
 
             <div class="admin-order-body">
+              <!-- Visual Workflow Stepper -->
+              <div class="order-workflow-stepper">
+                <div class="step-pill ${ord.status === 'RECEIVED' ? 'active' : (isReceivedDone ? 'done' : '')}">1. Received</div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step-pill ${isPreparingActive ? 'active' : (isPreparingDone ? 'done' : '')}">2. Preparing</div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step-pill ${isReadyActive ? 'active' : (isReadyDone ? 'done' : '')}">3. Ready</div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step-pill ${isCompletedActive ? 'active done' : ''}">4. Done</div>
+              </div>
+
               <div class="order-customer-info">
                 <strong>Guest:</strong> ${escapeHtml(ord.customer_name)} &bull; <a href="tel:${escapeHtml(ord.customer_phone)}" style="color: var(--color-accent-ochre);">${escapeHtml(ord.customer_phone)}</a>
                 <div style="font-size: 0.76rem; color: var(--admin-text-muted); margin-top: 2px;">
@@ -1164,7 +1213,7 @@
               ${ord.customer_utr ? `
                 <div style="background: rgba(46, 125, 50, 0.15); border: 1px solid #2e7d32; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.8rem; font-size: 0.8rem; color: #a5d6a7;">
                   <strong>Guest Submitted UPI UTR:</strong> <code style="color: #fff; font-size: 0.92rem; font-weight: 800;">${escapeHtml(ord.customer_utr)}</code>
-                  <div style="font-size: 0.72rem; color: var(--admin-text-muted); margin-top: 2px;">Match with incoming alerts to 9182916879@ybl</div>
+                  <div style="font-size: 0.72rem; color: var(--admin-text-muted); margin-top: 2px;">Verify with incoming alerts to 9182916879@ybl</div>
                 </div>
               ` : ''}
 
@@ -1183,44 +1232,60 @@
               </div>
             </div>
 
-            <div class="admin-order-footer">
-              <div class="action-btns-row">
-                ${!isPaid ? `
-                  <button class="btn btn-sm" style="background:#27ae60; color:#fff;" onclick="markOrderPaid('${ord.id}')">
-                    ${isUpi ? '✅ Verify & Accept Order' : '💵 Settle & Accept Order'}
-                  </button>
-                ` : ''}
+            <!-- Redesigned 2-Track Action Footer -->
+            <div class="admin-order-footer" style="padding: 0.9rem 1.25rem; border-top: 1px solid var(--admin-border); background: rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 0.75rem;">
+              
+              <!-- Kitchen Workflow Track -->
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                <div style="font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--admin-text-muted); font-weight: 700;">Kitchen Action</div>
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                  ${(ord.status === 'RECEIVED' || ord.status === 'CONFIRMED') ? `
+                    <button class="btn btn-primary btn-sm" style="font-weight: 700; padding: 0.35rem 0.8rem;" onclick="updateOrderStatus('${ord.id}', 'PREPARING', '${ord.order_number}')">
+                      👨‍🍳 Accept &amp; Start Cooking
+                    </button>
+                  ` : ''}
 
-                ${isPaid && (ord.status === 'RECEIVED' || ord.status === 'CONFIRMED') ? `
-                  <button class="btn btn-primary btn-sm" onclick="updateOrderStatus('${ord.id}', 'PREPARING')">
-                    🍳 Start Cooking · Food Preparing
-                  </button>
-                ` : ''}
+                  ${ord.status === 'PREPARING' ? `
+                    <button class="btn btn-sm" style="background: #27ae60; color: #fff; font-weight: 700; padding: 0.35rem 0.8rem;" onclick="updateOrderStatus('${ord.id}', 'READY', '${ord.order_number}')">
+                      🔔 Mark Food Ready
+                    </button>
+                  ` : ''}
 
-                ${ord.status === 'PREPARING' ? `
-                  <button class="btn btn-sm" style="background: #27ae60; color: #fff;" onclick="updateOrderStatus('${ord.id}', 'READY')">
-                    🔔 Food Cooked &amp; Ready
-                  </button>
-                ` : ''}
+                  ${ord.status === 'READY' ? `
+                    <button class="btn btn-sm" style="background: #2f80ed; color: #fff; font-weight: 700; padding: 0.35rem 0.8rem;" onclick="updateOrderStatus('${ord.id}', 'COMPLETED', '${ord.order_number}')">
+                      ${ord.order_type === 'DINE_IN' ? '🧹 Clean Table &amp; Complete' : '✓ Hand Over &amp; Complete'}
+                    </button>
+                  ` : ''}
 
-                ${ord.status === 'READY' ? `
-                  <button class="btn btn-sm" style="background: #2f80ed; color: #fff;" onclick="updateOrderStatus('${ord.id}', 'COMPLETED')">
-                    ${ord.order_type === 'DINE_IN' ? '🧹 Table Cleaned · Vacate &amp; Complete' : '✓ Handed Over · Complete Order'}
-                  </button>
-                ` : ''}
+                  ${ord.status === 'COMPLETED' ? `
+                    <span style="font-size: 0.82rem; color: #27ae60; font-weight: 750;">
+                      ✓ Order Finished ${ord.order_type === 'DINE_IN' && ord.table_number ? `· Table #${ord.table_number} Vacant` : ''}
+                    </span>
+                  ` : ''}
+                </div>
+              </div>
 
-                ${ord.status === 'COMPLETED' ? `
-                  <span style="font-size: 0.82rem; color: #27ae60; font-weight: 750; display: inline-flex; align-items: center; gap: 0.35rem;">
-                    ✓ Order Completed ${ord.order_type === 'DINE_IN' && ord.table_number ? `· Table #${ord.table_number} Vacant` : ''}
-                  </span>
-                ` : ''}
+              <!-- Payment Settlement & Cancellation Track -->
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.08);">
+                <div>
+                  ${isPaid ? `
+                    <span style="font-size: 0.78rem; font-weight: 700; color: #27ae60; background: rgba(39, 174, 96, 0.12); border: 1px solid rgba(39, 174, 96, 0.3); padding: 0.25rem 0.6rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.3rem;">
+                      ✓ Paid (${ord.payment_method})
+                    </span>
+                  ` : `
+                    <button class="btn btn-sm" style="background: #e67e22; color: #fff; font-weight: 700; padding: 0.35rem 0.75rem;" onclick="markOrderPaid('${ord.id}', '${ord.order_number}')">
+                      ${isUpi ? '✅ Verify UPI (₹' + ord.total + ')' : '💵 Settle Cash (₹' + ord.total + ')'}
+                    </button>
+                  `}
+                </div>
 
                 ${ord.status !== 'COMPLETED' && ord.status !== 'CANCELLED' ? `
-                  <button class="btn btn-secondary btn-sm" style="border-color: #eb5757; color: #eb5757; margin-left: auto;" onclick="updateOrderStatus('${ord.id}', 'CANCELLED')">
+                  <button class="btn btn-sm" style="background: transparent; border: 1px solid rgba(235, 87, 87, 0.35); color: #eb5757; font-size: 0.75rem; padding: 0.25rem 0.6rem;" onclick="updateOrderStatus('${ord.id}', 'CANCELLED', '${ord.order_number}')">
                     Cancel
                   </button>
                 ` : ''}
               </div>
+
             </div>
           </div>
         `;
@@ -1250,7 +1315,7 @@
       } catch (_) {}
     }
 
-    async function updateOrderStatus(orderId, status) {
+    async function updateOrderStatus(orderId, status, orderNumber = '') {
       try {
         const res = await adminFetch(`/api/admin/orders/${orderId}/status`, {
           method: 'PATCH',
@@ -1259,62 +1324,78 @@
           },
           body: JSON.stringify({ status })
         });
+        const j = await res.json();
         if (res.ok) {
+          showToast(`✓ Order ${orderNumber || ''} moved to ${status}!`, 'success');
           broadcastOrderSync({ orderId, status });
           debouncedFetchOrders(false, 0);
           fetchStats();
           if (document.getElementById('panel-tables')?.style.display !== 'none') {
             fetchAdminTables();
           }
+        } else {
+          showToast(j.error?.message || 'Failed to update order status.', 'error');
         }
       } catch (err) {
-        alert('Failed to update status.');
+        showToast('Network error updating status.', 'error');
       }
     }
 
-    async function markOrderPaid(orderId) {
+    async function markOrderPaid(orderId, orderNumber = '') {
       try {
         const res = await adminFetch(`/api/admin/orders/${orderId}/mark-paid`, {
           method: 'POST'
         });
+        const j = await res.json();
         if (res.ok) {
+          showToast(`✓ Order ${orderNumber || ''} payment recorded as PAID!`, 'success');
           broadcastOrderSync({ orderId, status: 'CONFIRMED', paymentStatus: 'PAID' });
           debouncedFetchOrders(false, 0);
           fetchStats();
           if (document.getElementById('panel-tables')?.style.display !== 'none') {
             fetchAdminTables();
           }
+        } else {
+          showToast(j.error?.message || 'Failed to mark payment paid.', 'error');
         }
       } catch (err) {
-        alert('Failed to mark paid.');
+        showToast('Network error marking payment paid.', 'error');
       }
     }
 
     async function promptResetOrders() {
       const confirmed = confirm(
-        '⚠️ RESET ALL ORDERS TO START FRESH?\\n\\n' +
-        'This will permanently delete all order history and payment records, and reset the order counter back to CAF-1001.\\n\\n' +
-        'All menu products, categories, tables, and credentials will be preserved.\\n\\n' +
+        '⚠️ RESET ALL ORDERS TO START FRESH?\n\n' +
+        'This will permanently delete all order history and payment records, and reset the order counter back to CAF-1001.\n\n' +
+        'All menu products, categories, tables, and credentials will be preserved.\n\n' +
         'Are you sure you want to delete all order history and start fresh?'
       );
       if (!confirmed) return;
 
       try {
         const res = await adminFetch('/api/admin/orders/reset', {
-          method: 'POST'
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: true })
         });
         const j = await res.json();
         if (res.ok) {
-          alert('✅ All order history purged! The order queue is now fresh with 0 orders.');
+          showToast('✓ All order history purged! Queue reset to 0.', 'success');
+          renderOrders([]);
+          document.getElementById('stat-today-orders').textContent = '0';
+          document.getElementById('stat-today-revenue').textContent = '₹0';
+          document.getElementById('stat-pending-orders').textContent = '0';
+          document.getElementById('stat-preparing-orders').textContent = '0';
+          document.getElementById('pending-orders-badge').textContent = '0';
           broadcastOrderSync({ action: 'RESET_ORDERS' });
           debouncedFetchOrders(false, 0);
           fetchStats();
           fetchAdminTables();
         } else {
-          alert(j.error?.message || 'Failed to reset orders.');
+          showToast(j.error?.message || 'Failed to reset orders.', 'error');
         }
       } catch (e) {
-        alert('Network error while resetting orders.');
+        showToast('Network error while resetting orders.', 'error');
       }
     }
 

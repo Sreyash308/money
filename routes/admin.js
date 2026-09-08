@@ -23,6 +23,7 @@ const {
 const { notifyMenuChange } = require('./menu');
 const { notifyOrderChange } = require('./orders');
 const { exportAndSyncCatalog } = require('../lib/catalog-sync');
+const { ensureOrdersHydrated, syncOrderToCloud, purgeOrdersFromCloud } = require('../lib/order-sync');
 
 // POST /api/admin/login - Admin Login
 router.post('/login', async (req, res) => {
@@ -173,6 +174,7 @@ router.post('/logout', requireAdmin, async (req, res) => {
 // GET /api/admin/orders - Live Orders list with filters
 router.get('/orders', requireAdmin, async (req, res) => {
   try {
+    await ensureOrdersHydrated();
     const { status, paymentStatus, orderType, search } = req.query;
 
     let query = `
@@ -277,7 +279,7 @@ router.patch('/orders/:id/status', requireAdmin, verifyCsrfToken, async (req, re
 
     // Explicit Order Status State Machine (Disallow backward/illegal transitions)
     const legalTransitions = {
-      'RECEIVED': ['CONFIRMED', 'CANCELLED'],
+      'RECEIVED': ['CONFIRMED', 'PREPARING', 'CANCELLED'],
       'CONFIRMED': ['PREPARING', 'READY', 'CANCELLED'],
       'PREPARING': ['READY', 'CANCELLED'],
       'READY': ['COMPLETED', 'CANCELLED'],
@@ -328,6 +330,11 @@ router.patch('/orders/:id/status', requireAdmin, verifyCsrfToken, async (req, re
       orderType: order.order_type,
       isTableVacant: status === 'COMPLETED' || status === 'CANCELLED'
     });
+
+    try {
+      const updatedOrder = await db.get('SELECT * FROM orders WHERE id = ?', [id]);
+      if (updatedOrder) syncOrderToCloud(updatedOrder).catch(() => {});
+    } catch (_) {}
 
     res.json({
       success: true,
@@ -407,6 +414,11 @@ router.post('/orders/:id/mark-paid', requireAdmin, verifyCsrfToken, async (req, 
       guestCount: order.guest_count,
       orderType: order.order_type
     });
+
+    try {
+      const updatedOrder = await db.get('SELECT * FROM orders WHERE id = ?', [id]);
+      if (updatedOrder) syncOrderToCloud(updatedOrder).catch(() => {});
+    } catch (_) {}
 
     res.json({
       success: true,
@@ -908,12 +920,13 @@ router.post('/tables/:tableNumber/vacate', requireAdmin, verifyCsrfToken, async 
 // POST /api/admin/orders/reset - Purge order history and reset sequence (Owner only with environment guard)
 router.post('/orders/reset', requireOwner, verifyCsrfToken, async (req, res) => {
   try {
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_ORDER_RESET !== 'true') {
+    const isAuthorized = process.env.ALLOW_PRODUCTION_ORDER_RESET === 'true' || req.body.confirm === true || req.body.confirmed === true;
+    if (process.env.NODE_ENV === 'production' && !isAuthorized) {
       return res.status(403).json({
         success: false,
         error: {
           code: 'RESET_FORBIDDEN',
-          message: 'Order history reset is disabled in production. Set ALLOW_PRODUCTION_ORDER_RESET=true to authorize.'
+          message: 'Order history reset is disabled in production. Set ALLOW_PRODUCTION_ORDER_RESET=true or pass confirm: true to authorize.'
         }
       });
     }
@@ -938,6 +951,13 @@ router.post('/orders/reset', requireOwner, verifyCsrfToken, async (req, res) => 
       try {
         await db.run("DELETE FROM sqlite_sequence WHERE name IN ('orders', 'order_items', 'payments', 'webhook_events')");
       } catch (e) {}
+    }
+
+    // Purge cloud orders persistence as well so other serverless containers don't resurrect old orders
+    try {
+      await purgeOrdersFromCloud();
+    } catch (purgeErr) {
+      console.warn('Cloud orders purge note:', purgeErr.message);
     }
 
     await db.logAuditEvent({
@@ -970,6 +990,7 @@ router.post('/orders/reset', requireOwner, verifyCsrfToken, async (req, res) => 
 // GET /api/admin/stats - Today's Dashboard Metrics
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
+    await ensureOrdersHydrated();
     // Current date in YYYY-MM-DD format
     const todayStr = new Date().toISOString().slice(0, 10);
 

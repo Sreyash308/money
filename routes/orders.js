@@ -11,6 +11,7 @@ const router = express.Router();
 const db = require('../db');
 const { directUPI, counter, razorpay } = require('../lib/payments');
 const { getJwtSecret, JWT_ISSUER, JWT_AUDIENCE } = require('../middleware/auth');
+const { ensureOrdersHydrated, syncOrderToCloud } = require('../lib/order-sync');
 
 let currentOrderVersion = Date.now();
 const sseOrderClients = new Set();
@@ -670,6 +671,37 @@ router.post('/', async (req, res) => {
       total: finalTotal
     });
 
+    try {
+      const orderRecordForSync = {
+        id: orderId,
+        order_number: orderNumber,
+        customer_name: customerName.trim(),
+        customer_phone: cleanPhone,
+        order_type: orderType,
+        table_id: validTableId,
+        table_number: validTableNumber,
+        table_numbers: validTableNumbersStr,
+        guest_count: validGuestCount,
+        status: 'RECEIVED',
+        payment_status: 'PAYMENT_PENDING',
+        payment_method: normalizedMethod,
+        subtotal: calculatedTotal,
+        tax: taxAmount,
+        discount: 0,
+        total: finalTotal,
+        notes: cleanNotes,
+        order_token: orderToken,
+        idempotency_key: cleanIdempotencyKey,
+        customer_utr: null,
+        razorpay_order_id: (paymentPayload && paymentPayload.razorpayOrderId) || null,
+        created_at: now,
+        updated_at: now
+      };
+      await syncOrderToCloud(orderRecordForSync, validatedItems);
+    } catch (syncErr) {
+      console.warn('Order cloud sync note:', syncErr.message);
+    }
+
     res.status(201).json({
       success: true,
       data: {
@@ -749,6 +781,7 @@ router.post('/', async (req, res) => {
 // GET /api/orders/history - Customer Order History (strictly scoped by device order numbers)
 router.get('/history', async (req, res) => {
   try {
+    await ensureOrdersHydrated();
     const { orderNumbers } = req.query;
 
     let orders = [];
@@ -788,6 +821,7 @@ router.get('/history', async (req, res) => {
 // GET /api/orders/:orderNumber - Customer Live Order Tracking (Token protected for privacy)
 router.get('/:orderNumber', async (req, res) => {
   try {
+    await ensureOrdersHydrated();
     const { orderNumber } = req.params;
     const clientToken = req.headers['x-order-token'] || req.query.token;
 

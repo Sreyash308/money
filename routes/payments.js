@@ -10,6 +10,7 @@ const router = express.Router();
 const db = require('../db');
 const { getActiveMethods, directUPI, razorpay } = require('../lib/payments');
 const { notifyOrderChange } = require('./orders');
+const { syncOrderToCloud } = require('../lib/order-sync');
 
 // GET /api/payments/methods - List currently configured payment methods
 router.get('/methods', (req, res) => {
@@ -114,6 +115,11 @@ router.post('/submit-utr', async (req, res) => {
       'UPDATE orders SET customer_utr = ?, updated_at = ? WHERE id = ?',
       [cleanUtr, now, order.id]
     );
+
+    try {
+      const updatedOrder = await db.get('SELECT * FROM orders WHERE id = ?', [order.id]);
+      if (updatedOrder) syncOrderToCloud(updatedOrder).catch(() => {});
+    } catch (_) {}
 
     await db.logAuditEvent({
       actorId: 'CUSTOMER',
@@ -390,6 +396,11 @@ async function handleVerifyPayment(req, res) {
         tableNumber: order.table_number,
         orderType: order.order_type
       });
+
+      try {
+        const updatedOrder = await db.get('SELECT * FROM orders WHERE id = ?', [order.id]);
+        if (updatedOrder) syncOrderToCloud(updatedOrder).catch(() => {});
+      } catch (_) {}
 
       return res.status(200).json({
         success: true,
