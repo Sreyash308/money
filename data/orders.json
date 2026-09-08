@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-08T21:16:55.429Z",
+  "updated_at": "2026-09-08T21:16:58.431Z",
   "last_reset_at": "2026-09-08T21:15:00.873Z",
   "orders": [
     {
@@ -12,8 +12,8 @@
       "table_number": 1,
       "table_numbers": "1",
       "guest_count": 2,
-      "status": "CONFIRMED",
-      "payment_status": "PAID",
+      "status": "PREPARING",
+      "payment_status": "PAYMENT_PENDING",
       "payment_method": "RAZORPAY",
       "subtotal": 190,
       "tax": 0,
@@ -26,7 +26,7 @@
       "razorpay_order_id": "order_TZghdDfHbNd6tE",
       "razorpay_payment_id": null,
       "created_at": "2026-09-08T21:16:39.000Z",
-      "updated_at": "2026-09-08T21:16:55.288Z",
+      "updated_at": "2026-09-08T21:16:58.303Z",
       "items": [
         {
           "productId": "prod_caramel_latte",
