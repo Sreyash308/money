@@ -1,7 +1,49 @@
 {
-  "updated_at": "2026-09-08T20:54:00.202Z",
+  "updated_at": "2026-09-08T20:54:02.561Z",
   "last_reset_at": null,
   "orders": [
+    {
+      "id": "ord_911b3fd8-2d7a-42a8-b75a-b9619369dca3",
+      "order_number": "CAF-1001",
+      "customer_name": "Sreyash G",
+      "customer_phone": "9876543210",
+      "order_type": "DINE_IN",
+      "table_id": "tbl_3",
+      "table_number": 3,
+      "table_numbers": "3",
+      "guest_count": 2,
+      "status": "CANCELLED",
+      "payment_status": "PAYMENT_PENDING",
+      "payment_method": "COUNTER",
+      "subtotal": 100,
+      "tax": 0,
+      "discount": 0,
+      "total": 100,
+      "notes": "Oat milk if available",
+      "order_token": "d4fea351f61eeb4639c59521a6dcf82bda6178cba9a12607",
+      "idempotency_key": null,
+      "customer_utr": null,
+      "razorpay_order_id": null,
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-08T20:49:16.137Z",
+      "updated_at": "2026-09-08T20:54:02.452Z",
+      "items": [
+        {
+          "productId": "prod_caramel_latte",
+          "name": "Caramel Latte",
+          "unitPrice": 1,
+          "quantity": 1,
+          "subtotal": 1
+        },
+        {
+          "productId": "prod_chocolate_brownie",
+          "name": "Fudgy Chocolate Brownie",
+          "unitPrice": 99,
+          "quantity": 1,
+          "subtotal": 99
+        }
+      ]
+    },
     {
       "id": "ord_d223779f-98a7-4324-99f6-75e72ed76057",
       "order_number": "CAF-1002",
