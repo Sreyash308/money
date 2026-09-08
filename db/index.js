@@ -239,16 +239,35 @@ async function initDb() {
 
 /**
  * Concurrency-Safe Sequential Order Number Generator
- * Must be called within a database transaction to guarantee atomicity.
+ * Inspects existing orders and sequence state to guarantee unique, non-colliding order numbers.
  */
 async function getNextOrderNumber(tx) {
   const runner = tx || { run, get };
-  await runner.run("UPDATE order_sequences SET current_val = current_val + 1 WHERE name = 'order_number'");
-  const seq = await runner.get("SELECT current_val FROM order_sequences WHERE name = 'order_number'");
-  if (!seq || !seq.current_val) {
-    throw new Error('Failed to generate atomic sequential order number.');
+
+  // 1. Find the highest existing numeric CAF-XXXX order in the database
+  const maxRow = await runner.get(
+    "SELECT MAX(CAST(SUBSTR(order_number, 5) AS INTEGER)) AS max_num FROM orders WHERE order_number LIKE 'CAF-%'"
+  );
+  const maxExisting = (maxRow && maxRow.max_num) ? parseInt(maxRow.max_num, 10) : 1000;
+
+  // 2. Fetch current_val from order_sequences
+  const seqRow = await runner.get("SELECT current_val FROM order_sequences WHERE name = 'order_number'");
+  let currentSeq = (seqRow && seqRow.current_val) ? parseInt(seqRow.current_val, 10) : 1000;
+
+  // 3. Next candidate number must be strictly greater than both
+  let nextVal = Math.max(currentSeq, maxExisting) + 1;
+
+  // 4. Guarantee absolute uniqueness: advance past any order already using CAF-${nextVal}
+  while (true) {
+    const exists = await runner.get("SELECT id FROM orders WHERE order_number = ?", [`CAF-${nextVal}`]);
+    if (!exists) break;
+    nextVal++;
   }
-  return `CAF-${seq.current_val}`;
+
+  // 5. Atomically update order_sequences with the verified unique sequence value
+  await runner.run("UPDATE order_sequences SET current_val = ? WHERE name = 'order_number'", [nextVal]);
+
+  return `CAF-${nextVal}`;
 }
 
 /**

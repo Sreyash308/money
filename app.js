@@ -1148,6 +1148,7 @@ function initCheckoutFlow() {
           errorMsg.style.display = 'block';
         }
         showToast(json.error?.message || 'Order failed. Please try again.', 'error');
+        window._currentCheckoutIdempotencyKey = null; // Clear key so retry creates fresh attempt
         nextBtn.disabled = false;
         nextBtn.innerHTML = `<span>Try Again</span>`;
         return;
@@ -1197,6 +1198,7 @@ function initCheckoutFlow() {
       }
     } catch (err) {
       console.error('Submission error:', err);
+      window._currentCheckoutIdempotencyKey = null; // Clear key so retry creates fresh attempt
       showToast('Something went wrong. Your order was not duplicated. Please try again.', 'error');
       nextBtn.disabled = false;
       nextBtn.innerHTML = `<span>Try Again</span>`;

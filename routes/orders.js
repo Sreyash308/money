@@ -184,6 +184,9 @@ router.post('/validate', async (req, res) => {
 // POST /api/orders - Fast, single-pass, idempotent order creation
 router.post('/', async (req, res) => {
   try {
+    // Ensure all cloud orders are hydrated into local database before checking idempotency & sequence
+    await ensureOrdersHydrated();
+
     const {
       customerName,
       customerPhone,
@@ -197,11 +200,14 @@ router.post('/', async (req, res) => {
       idempotencyKey
     } = req.body;
 
+    const rawIdempotencyKey = idempotencyKey || req.headers['idempotency-key'] || req.headers['x-idempotency-key'];
+    const cleanIdempotencyKey = rawIdempotencyKey && typeof rawIdempotencyKey === 'string' ? rawIdempotencyKey.trim() : null;
+
     // 0. Idempotency Check: Prevent duplicate orders on network retries or double-clicks
-    if (idempotencyKey && typeof idempotencyKey === 'string') {
+    if (cleanIdempotencyKey) {
       const existingOrder = await db.get(
         'SELECT * FROM orders WHERE idempotency_key = ?',
-        [idempotencyKey.trim()]
+        [cleanIdempotencyKey]
       );
 
       if (existingOrder) {
@@ -239,9 +245,12 @@ router.post('/', async (req, res) => {
           data: {
             orderId: existingOrder.id,
             orderNumber: existingOrder.order_number,
+            orderToken: existingOrder.order_token,
             customerName: existingOrder.customer_name,
             orderType: existingOrder.order_type,
             tableNumber: existingOrder.table_number,
+            tableNumbers: existingOrder.table_numbers ? existingOrder.table_numbers.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : [],
+            guestCount: existingOrder.guest_count,
             paymentMethod: existingOrder.payment_method,
             paymentStatus: existingOrder.payment_status,
             status: existingOrder.status,
@@ -446,7 +455,6 @@ router.post('/', async (req, res) => {
     const orderToken = crypto.randomBytes(24).toString('hex');
     const now = new Date().toISOString();
     const cleanNotes = notes && typeof notes === 'string' ? notes.trim().slice(0, 300) : null;
-    const cleanIdempotencyKey = idempotencyKey && typeof idempotencyKey === 'string' ? idempotencyKey.trim() : null;
 
     // Configurable tax rate from settings (defaults to 0%)
     const taxRow = await db.get("SELECT value FROM settings WHERE key = 'tax_rate_percent'");
@@ -486,36 +494,48 @@ router.post('/', async (req, res) => {
         }
       }
 
-      // Concurrency-safe atomic order number generation
-      orderNumber = await db.getNextOrderNumber(tx);
-
-      await tx.run(
-        `INSERT INTO orders (
-          id, order_number, customer_name, customer_phone, order_type,
-          table_id, table_number, table_numbers, guest_count, status, payment_status, payment_method,
-          subtotal, tax, discount, total, notes, order_token, idempotency_key, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', 'PAYMENT_PENDING', ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
-        [
-          orderId,
-          orderNumber,
-          customerName.trim(),
-          cleanPhone,
-          orderType,
-          validTableId,
-          validTableNumber,
-          validTableNumbersStr,
-          validGuestCount,
-          normalizedMethod,
-          calculatedTotal,
-          taxAmount,
-          finalTotal,
-          cleanNotes,
-          orderToken,
-          cleanIdempotencyKey,
-          now,
-          now
-        ]
-      );
+      // Concurrency-safe atomic order number generation with auto-retry
+      let inserted = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        orderNumber = await db.getNextOrderNumber(tx);
+        try {
+          await tx.run(
+            `INSERT INTO orders (
+              id, order_number, customer_name, customer_phone, order_type,
+              table_id, table_number, table_numbers, guest_count, status, payment_status, payment_method,
+              subtotal, tax, discount, total, notes, order_token, idempotency_key, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', 'PAYMENT_PENDING', ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
+            [
+              orderId,
+              orderNumber,
+              customerName.trim(),
+              cleanPhone,
+              orderType,
+              validTableId,
+              validTableNumber,
+              validTableNumbersStr,
+              validGuestCount,
+              normalizedMethod,
+              calculatedTotal,
+              taxAmount,
+              finalTotal,
+              cleanNotes,
+              orderToken,
+              cleanIdempotencyKey,
+              now,
+              now
+            ]
+          );
+          inserted = true;
+          break;
+        } catch (insertErr) {
+          if (insertErr.message?.includes('orders.order_number') && attempt < 2) {
+            console.warn(`Order number collision on ${orderNumber}, retrying with next number...`);
+            continue;
+          }
+          throw insertErr;
+        }
+      }
 
       for (const itm of validatedItems) {
         await tx.run(
@@ -738,7 +758,8 @@ router.post('/', async (req, res) => {
     }
 
     // Handle duplicate idempotency key race
-    const cleanIdempotencyKey = req.body && req.body.idempotencyKey && typeof req.body.idempotencyKey === 'string' ? req.body.idempotencyKey.trim() : null;
+    const errIdempotencyKey = (req.body && req.body.idempotencyKey) || req.headers?.['idempotency-key'] || req.headers?.['x-idempotency-key'];
+    const cleanIdempotencyKey = errIdempotencyKey && typeof errIdempotencyKey === 'string' ? errIdempotencyKey.trim() : null;
     if (cleanIdempotencyKey && (err.message?.includes('UNIQUE constraint failed') || err.message?.includes('idempotency_key') || err.code === '23505')) {
       try {
         const existingOrder = await db.get('SELECT * FROM orders WHERE idempotency_key = ?', [cleanIdempotencyKey]);
@@ -752,9 +773,12 @@ router.post('/', async (req, res) => {
             data: {
               orderId: existingOrder.id,
               orderNumber: existingOrder.order_number,
+              orderToken: existingOrder.order_token,
               customerName: existingOrder.customer_name,
               orderType: existingOrder.order_type,
               tableNumber: existingOrder.table_number,
+              tableNumbers: existingOrder.table_numbers ? existingOrder.table_numbers.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : [],
+              guestCount: existingOrder.guest_count,
               paymentMethod: existingOrder.payment_method,
               paymentStatus: existingOrder.payment_status,
               status: existingOrder.status,
