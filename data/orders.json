@@ -1,7 +1,43 @@
 {
-  "updated_at": "2026-09-08T21:09:38.305Z",
+  "updated_at": "2026-09-08T21:10:16.390Z",
   "last_reset_at": "2026-09-08T20:54:33.039Z",
   "orders": [
+    {
+      "id": "ord_7d019119-567b-4169-a2be-dad871bd27ce",
+      "order_number": "CAF-1009",
+      "customer_name": "Aarav Sharma & Party",
+      "customer_phone": "9876543210",
+      "order_type": "DINE_IN",
+      "table_id": "tbl_1",
+      "table_number": 1,
+      "table_numbers": "1, 2",
+      "guest_count": 6,
+      "status": "RECEIVED",
+      "payment_status": "PAYMENT_PENDING",
+      "payment_method": "COUNTER",
+      "subtotal": 2,
+      "tax": 0,
+      "discount": 0,
+      "total": 2,
+      "notes": null,
+      "order_token": "171e0f1db9be5823cfee2948cd0669d9607e9fddf70b1b09",
+      "idempotency_key": null,
+      "customer_utr": null,
+      "razorpay_order_id": null,
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-08T21:10:16.036Z",
+      "updated_at": "2026-09-08T21:10:16.036Z",
+      "items": [
+        {
+          "id": "d3d66c32-51f5-42b3-99ca-f0809df911da",
+          "productId": "prod_caramel_latte",
+          "nameSnapshot": "Caramel Latte",
+          "priceSnapshot": 1,
+          "quantity": 2,
+          "subtotal": 2
+        }
+      ]
+    },
     {
       "id": "ord_470d1905-41ac-4c89-ab5b-7206f5042c9f",
       "order_number": "CAF-1008",
