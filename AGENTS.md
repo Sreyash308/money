@@ -115,3 +115,4 @@ Do NOT execute until explicitly confirmed with the required phrase.
 8. **Deployment Safety**: Inspect migrations for destructive statements (`DROP`, `ALTER DROP COLUMN`) and request approval if production data could be lost.
 9. **Required Approval Phrase**: For high-risk production operations, require the unambiguous confirmation: **"I approve this production destructive operation."**
 10. **Absolute Rule**: When uncertain whether an operation is destructive: **STOP &rarr; explain the risk &rarr; request confirmation.**
+11. **Real-Time Local Sync Before Changes**: Before starting any task or making modifications requested by the user, always sync locally with real-time state first (`git fetch`, `git status`, `git pull` if needed, verify environment and live state). Never proceed with changes on stale assumptions.
