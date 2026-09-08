@@ -1,7 +1,43 @@
 {
-  "updated_at": "2026-09-08T21:13:05.903Z",
+  "updated_at": "2026-09-08T21:14:08.947Z",
   "last_reset_at": "2026-09-08T20:54:33.039Z",
   "orders": [
+    {
+      "id": "ord_baadbc60-a682-4266-b84a-7b6635ce8139",
+      "order_number": "CAF-1017",
+      "customer_name": "Production Live Verification",
+      "customer_phone": "9876543210",
+      "order_type": "TAKEAWAY",
+      "table_id": null,
+      "table_number": null,
+      "table_numbers": null,
+      "guest_count": 2,
+      "status": "RECEIVED",
+      "payment_status": "PAYMENT_PENDING",
+      "payment_method": "COUNTER",
+      "subtotal": 189,
+      "tax": 0,
+      "discount": 0,
+      "total": 189,
+      "notes": null,
+      "order_token": "717ad909c999ba7099af4b12ff5c76f9de14139db7a7cbb4",
+      "idempotency_key": null,
+      "customer_utr": null,
+      "razorpay_order_id": null,
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-08T21:14:08.853Z",
+      "updated_at": "2026-09-08T21:14:08.853Z",
+      "items": [
+        {
+          "id": "cef1cd9d-9795-4cfe-96e6-ce016268b4eb",
+          "productId": "prod_caramel_latte",
+          "nameSnapshot": "Caramel Latte",
+          "priceSnapshot": 189,
+          "quantity": 1,
+          "subtotal": 189
+        }
+      ]
+    },
     {
       "id": "ord_9d492bbe-7d73-486f-b3a0-66a3ab931b19",
       "order_number": "CAF-1016",
