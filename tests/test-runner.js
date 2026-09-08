@@ -115,6 +115,10 @@ async function runTests() {
 
   // TEST 4: Security: Zero-Trust Server Calculation
   await test('Security: Server calculates totals strictly from DB (ignores frontend price tampering)', async () => {
+    const latte = await db.get("SELECT price FROM products WHERE id = 'prod_caramel_latte'");
+    const fries = await db.get("SELECT price FROM products WHERE id = 'prod_peri_peri_fries'");
+    const expected = (latte.price * 2) + fries.price;
+
     const res = await request('POST', '/api/orders', {
       customerName: 'Security Tester',
       customerPhone: '9876543210',
@@ -122,15 +126,14 @@ async function runTests() {
       tableNumber: 1,
       paymentMethod: 'COUNTER',
       items: [
-        { productId: 'prod_caramel_latte', quantity: 2, price: 1 }, // Trying to pay ₹1 instead of ₹189
-        { productId: 'prod_peri_peri_fries', quantity: 1, price: 10 } // Trying to pay ₹10 instead of ₹129
+        { productId: 'prod_caramel_latte', quantity: 2, price: 9999 }, // Tampered price attempt
+        { productId: 'prod_peri_peri_fries', quantity: 1, price: 10 } // Tampered price attempt
       ]
     });
 
     if (res.status !== 201) throw new Error(`Expected 201, got ${res.status}`);
-    // Expected: (189 * 2) + (129 * 1) = 378 + 129 = 507
-    if (res.body.data.total !== 507) {
-      throw new Error(`Price tampering allowed! Expected ₹507, charged ₹${res.body.data.total}`);
+    if (res.body.data.total !== expected) {
+      throw new Error(`Price tampering allowed! Expected ₹${expected}, charged ₹${res.body.data.total}`);
     }
   });
 
@@ -142,6 +145,10 @@ async function runTests() {
   let counterOrderId = null;
 
   await test('Genuine Order 1: Creates CAF-1001 with Counter payment in PAYMENT_PENDING', async () => {
+    const latte = await db.get("SELECT price FROM products WHERE id = 'prod_caramel_latte'");
+    const brownie = await db.get("SELECT price FROM products WHERE id = 'prod_chocolate_brownie'");
+    const expected = latte.price + brownie.price;
+
     const res = await request('POST', '/api/orders', {
       customerName: 'Sreyash G',
       customerPhone: '9876543210',
@@ -150,15 +157,15 @@ async function runTests() {
       paymentMethod: 'COUNTER',
       notes: 'Oat milk if available',
       items: [
-        { productId: 'prod_caramel_latte', quantity: 1 }, // 189
-        { productId: 'prod_chocolate_brownie', quantity: 1 } // 99 (Total: 288)
+        { productId: 'prod_caramel_latte', quantity: 1 },
+        { productId: 'prod_chocolate_brownie', quantity: 1 }
       ]
     });
 
     if (res.status !== 201) throw new Error(`Expected 201, got ${res.status}`);
     const ord = res.body.data;
     if (ord.orderNumber !== 'CAF-1001') throw new Error(`Expected first order to be CAF-1001, got ${ord.orderNumber}`);
-    if (ord.total !== 288) throw new Error(`Expected total ₹288, got ₹${ord.total}`);
+    if (ord.total !== expected) throw new Error(`Expected total ₹${expected}, got ₹${ord.total}`);
     if (ord.paymentStatus !== 'PAYMENT_PENDING') throw new Error(`Expected PAYMENT_PENDING, got ${ord.paymentStatus}`);
     if (ord.status !== 'RECEIVED') throw new Error(`Expected RECEIVED, got ${ord.status}`);
 

@@ -510,13 +510,17 @@ router.post('/products', requireOwner, verifyCsrfToken, async (req, res) => {
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'CREATE', productId: id, name, price: numPrice, available: isAvail === 1 });
 
-    exportAndSyncCatalog({ commitMessage: `chore(menu): admin created product ${name} (₹${numPrice})` }).catch(err => {
-      console.warn('Background git sync on create:', err.message);
-    });
+    let gitSync = null;
+    try {
+      gitSync = await exportAndSyncCatalog({ commitMessage: `chore(menu): admin created product ${name} (₹${numPrice})` });
+    } catch (err) {
+      console.warn('Catalog sync error on create:', err.message);
+    }
 
     res.status(201).json({
       success: true,
-      data: { id, name, slug, price: numPrice, available: isAvail === 1 }
+      data: { id, name, slug, price: numPrice, available: isAvail === 1 },
+      git: gitSync?.git
     });
   } catch (err) {
     console.error('Error adding product:', err);
@@ -588,11 +592,14 @@ router.put('/products/:id', requireOwner, verifyCsrfToken, async (req, res) => {
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'UPDATE', productId: id, name: name || existing.name, price: numPrice || existing.price, available: isAvail !== null ? isAvail === 1 : existing.available === 1 });
 
-    exportAndSyncCatalog({ commitMessage: `chore(menu): admin updated ${name || existing.name} (price: ₹${numPrice || existing.price})` }).catch(err => {
-      console.warn('Background git sync on update:', err.message);
-    });
+    let gitSync = null;
+    try {
+      gitSync = await exportAndSyncCatalog({ commitMessage: `chore(menu): admin updated ${name || existing.name} (price: ₹${numPrice || existing.price})` });
+    } catch (err) {
+      console.warn('Catalog sync error on update:', err.message);
+    }
 
-    res.json({ success: true, message: 'Product updated successfully.' });
+    res.json({ success: true, message: 'Product updated successfully.', git: gitSync?.git });
   } catch (err) {
     console.error('Error editing product:', err);
     res.status(500).json({
@@ -637,9 +644,12 @@ router.patch('/products/:id/availability', requireOwner, verifyCsrfToken, async 
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'AVAILABILITY', productId: id, name: product.name, available: newAvailability === 1 });
 
-    exportAndSyncCatalog({ commitMessage: `chore(menu): admin set ${product.name} to ${newAvailability === 1 ? 'available' : 'sold out'}` }).catch(err => {
-      console.warn('Background git sync on availability toggle:', err.message);
-    });
+    let gitSync = null;
+    try {
+      gitSync = await exportAndSyncCatalog({ commitMessage: `chore(menu): admin set ${product.name} to ${newAvailability === 1 ? 'available' : 'sold out'}` });
+    } catch (err) {
+      console.warn('Catalog sync error on availability toggle:', err.message);
+    }
 
     res.json({
       success: true,
@@ -647,7 +657,8 @@ router.patch('/products/:id/availability', requireOwner, verifyCsrfToken, async 
         id,
         name: product.name,
         available: newAvailability === 1
-      }
+      },
+      git: gitSync?.git
     });
   } catch (err) {
     console.error('Error toggling availability:', err);
@@ -677,11 +688,14 @@ router.delete('/products/:id', requireOwner, verifyCsrfToken, async (req, res) =
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'DELETE', productId: id });
 
-    exportAndSyncCatalog({ commitMessage: `chore(menu): admin removed product ${id}` }).catch(err => {
-      console.warn('Background git sync on delete:', err.message);
-    });
+    let gitSync = null;
+    try {
+      gitSync = await exportAndSyncCatalog({ commitMessage: `chore(menu): admin removed product ${id}` });
+    } catch (err) {
+      console.warn('Catalog sync error on delete:', err.message);
+    }
 
-    res.json({ success: true, message: 'Product removed from menu.' });
+    res.json({ success: true, message: 'Product removed from menu.', git: gitSync?.git });
   } catch (err) {
     console.error('Error deleting product:', err);
     res.status(500).json({

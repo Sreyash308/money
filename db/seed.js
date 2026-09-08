@@ -12,7 +12,7 @@ async function seed() {
   await db.initDb();
 
   const now = new Date().toISOString();
-  const diskCatalog = require('../lib/catalog-sync').loadCatalogFromDisk();
+  const diskCatalog = await require('../lib/catalog-sync').loadCatalog();
   
   // 1. Categories
   const categories = diskCatalog?.categories || [

@@ -167,20 +167,21 @@ async function runSmokeAudit() {
 
   // TEST D — PRICE TAMPERING (Modify frontend request to Caramel Latte = ₹1, total = ₹1 -> server calculates ₹189)
   console.log('--- TEST D: SERVER-SIDE PRICE AUTHORITY (PRICE TAMPERING ATTEMPT) ---');
+  const latteProd = await db.get("SELECT price FROM products WHERE id = 'prod_caramel_latte'");
   const orderD = await request('POST', '/api/orders', {
     customerName: 'Tamper Tester',
     customerPhone: '9876543210',
     orderType: 'TAKEAWAY',
     paymentMethod: 'COUNTER',
-    items: [{ productId: 'prod_caramel_latte', quantity: 1, price: 1, unitPrice: 1 }],
-    total: 1,
-    subtotal: 1
+    items: [{ productId: 'prod_caramel_latte', quantity: 1, price: 9999, unitPrice: 9999 }],
+    total: 9999,
+    subtotal: 9999
   });
   if (orderD.status !== 201) throw new Error('TEST D: Failed to create order');
-  if (orderD.body.data.total !== 189) throw new Error(`TEST D: Tampered total accepted! Expected 189, got ${orderD.body.data.total}`);
+  if (orderD.body.data.total !== latteProd.price) throw new Error(`TEST D: Tampered total accepted! Expected ${latteProd.price}, got ${orderD.body.data.total}`);
   const dbOrdD = await db.get('SELECT total FROM orders WHERE id = ?', [orderD.body.data.orderId]);
-  if (dbOrdD.total !== 189) throw new Error(`TEST D: Tampered total in DB: ${dbOrdD.total}`);
-  console.log(`  ✓ Frontend sent ₹1; Server ignored tampering and strictly billed ₹${dbOrdD.total} from database`);
+  if (dbOrdD.total !== latteProd.price) throw new Error(`TEST D: Tampered total in DB: ${dbOrdD.total}`);
+  console.log(`  ✓ Frontend sent ₹9999; Server ignored tampering and strictly billed ₹${dbOrdD.total} from database`);
   console.log('  👉 TEST D: PASS\n');
 
   // TEST E — DUPLICATE ORDER (Submit identical checkout request with same idempotencyKey twice -> one order)
