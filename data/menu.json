@@ -1,5 +1,5 @@
 {
-  "last_synced_at": "2026-09-08T17:20:42.724Z",
+  "last_synced_at": "2026-09-08T17:20:58.216Z",
   "categories": [
     {
       "id": "cat_coffee",
@@ -50,7 +50,7 @@
       "is_cold": 0,
       "origin_tag": "Chikmagalur Washed Lot",
       "sort_order": 1,
-      "available": 1
+      "available": 0
     },
     {
       "id": "prod_hazelnut_mocha",
