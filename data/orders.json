@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-08T20:34:41.735Z",
+  "updated_at": "2026-09-08T20:34:47.188Z",
   "last_reset_at": null,
   "orders": [
     {
@@ -48,7 +48,7 @@
       "table_numbers": null,
       "guest_count": 2,
       "status": "COMPLETED",
-      "payment_status": "PAYMENT_PENDING",
+      "payment_status": "PAID",
       "payment_method": "COUNTER",
       "subtotal": 1,
       "tax": 0,
@@ -61,7 +61,7 @@
       "razorpay_order_id": null,
       "razorpay_payment_id": null,
       "created_at": "2026-09-08T20:26:08.210Z",
-      "updated_at": "2026-09-08T20:34:41.637Z",
+      "updated_at": "2026-09-08T20:34:47.087Z",
       "items": []
     }
   ]
