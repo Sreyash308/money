@@ -141,7 +141,7 @@ async function exec(sql) {
  */
 async function transaction(callback) {
   if (dbType === 'sqlite') {
-    sqliteDb.exec('BEGIN TRANSACTION');
+    sqliteDb.exec('BEGIN IMMEDIATE');
     try {
       const result = await callback({ all, get, run });
       sqliteDb.exec('COMMIT');
