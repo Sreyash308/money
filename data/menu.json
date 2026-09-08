@@ -1,5 +1,5 @@
 {
-  "last_synced_at": "2026-09-08T21:10:26.090Z",
+  "last_synced_at": "2026-09-08T21:10:27.479Z",
   "categories": [
     {
       "id": "cat_coffee",
@@ -42,8 +42,8 @@
       "id": "prod_caramel_latte",
       "name": "Caramel Latte",
       "slug": "caramel-latte",
-      "description": "Chikmagalur espresso, amber caramel, velvety milk",
-      "price": 225,
+      "description": "Chikmagalur single-origin double shot espresso, handcrafted amber caramel reduction, velvety textured milk.",
+      "price": 189,
       "image_url": "assets/coffee_mug.png",
       "category_id": "cat_coffee",
       "is_veg": 1,
