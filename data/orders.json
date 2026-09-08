@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-08T20:57:34.234Z",
+  "updated_at": "2026-09-08T20:58:12.104Z",
   "last_reset_at": "2026-09-08T20:54:33.039Z",
   "orders": [
     {
@@ -12,8 +12,8 @@
       "table_number": 1,
       "table_numbers": "1",
       "guest_count": 1,
-      "status": "RECEIVED",
-      "payment_status": "PAYMENT_PENDING",
+      "status": "CONFIRMED",
+      "payment_status": "PAID",
       "payment_method": "RAZORPAY",
       "subtotal": 1,
       "tax": 0,
@@ -24,15 +24,14 @@
       "idempotency_key": "idemp_1788901053110_zqktdtw",
       "customer_utr": null,
       "razorpay_order_id": "order_TZgNSeruqXWwxv",
-      "razorpay_payment_id": null,
+      "razorpay_payment_id": "pay_TZgNd3UDjZXlAA",
       "created_at": "2026-09-08T20:57:33.297Z",
-      "updated_at": "2026-09-08T20:57:33.297Z",
+      "updated_at": "2026-09-08T20:58:11.971Z",
       "items": [
         {
-          "id": "6399799a-d306-4a47-93e0-62f1ba178475",
           "productId": "prod_caramel_latte",
-          "nameSnapshot": "Caramel Latte",
-          "priceSnapshot": 1,
+          "name": "Caramel Latte",
+          "unitPrice": 1,
           "quantity": 1,
           "subtotal": 1
         }
