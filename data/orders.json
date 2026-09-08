@@ -1,7 +1,43 @@
 {
-  "updated_at": "2026-09-08T21:12:10.099Z",
+  "updated_at": "2026-09-08T21:12:20.978Z",
   "last_reset_at": "2026-09-08T20:54:33.039Z",
   "orders": [
+    {
+      "id": "ord_b50c3fb8-8cb5-439e-b897-ba37e67540b9",
+      "order_number": "CAF-1015",
+      "customer_name": "Idempotency Replay Test",
+      "customer_phone": "9876543210",
+      "order_type": "TAKEAWAY",
+      "table_id": null,
+      "table_number": null,
+      "table_numbers": null,
+      "guest_count": 2,
+      "status": "RECEIVED",
+      "payment_status": "PAYMENT_PENDING",
+      "payment_method": "COUNTER",
+      "subtotal": 189,
+      "tax": 0,
+      "discount": 0,
+      "total": 189,
+      "notes": null,
+      "order_token": "4ae466d48c37a9eb8e6b9a60721f93df3f91f981ace45788",
+      "idempotency_key": "unique-idemp-test-12345",
+      "customer_utr": null,
+      "razorpay_order_id": null,
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-08T21:12:20.619Z",
+      "updated_at": "2026-09-08T21:12:20.619Z",
+      "items": [
+        {
+          "id": "d89baced-6ef3-4ab1-a51f-431ea925e98a",
+          "productId": "prod_caramel_latte",
+          "nameSnapshot": "Caramel Latte",
+          "priceSnapshot": 189,
+          "quantity": 1,
+          "subtotal": 189
+        }
+      ]
+    },
     {
       "id": "ord_f8a81161-cdaf-45d4-bc19-25c15c3065ec",
       "order_number": "CAF-1014",
