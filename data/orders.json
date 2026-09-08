@@ -1,7 +1,51 @@
 {
-  "updated_at": "2026-09-08T21:15:47.825Z",
+  "updated_at": "2026-09-08T21:16:39.903Z",
   "last_reset_at": "2026-09-08T21:15:00.873Z",
   "orders": [
+    {
+      "id": "ord_61c66c9f-e007-42ef-8666-1991f8e981ab",
+      "order_number": "CAF-1020",
+      "customer_name": "Devansh Parmar",
+      "customer_phone": "9171253595",
+      "order_type": "DINE_IN",
+      "table_id": "tbl_1",
+      "table_number": 1,
+      "table_numbers": "1",
+      "guest_count": 2,
+      "status": "RECEIVED",
+      "payment_status": "PAYMENT_PENDING",
+      "payment_method": "RAZORPAY",
+      "subtotal": 190,
+      "tax": 0,
+      "discount": 0,
+      "total": 190,
+      "notes": null,
+      "order_token": "947c47c678d3a48d95143fc02ba15dbfad6ac82301f13266",
+      "idempotency_key": "idemp_1788902199053_s6ok8k4",
+      "customer_utr": null,
+      "razorpay_order_id": "order_TZghdDfHbNd6tE",
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-08T21:16:39.000Z",
+      "updated_at": "2026-09-08T21:16:39.000Z",
+      "items": [
+        {
+          "id": "3a9cd7e7-9391-4cb2-b932-2a65bc55ceec",
+          "productId": "prod_caramel_latte",
+          "nameSnapshot": "Caramel Latte",
+          "priceSnapshot": 189,
+          "quantity": 1,
+          "subtotal": 189
+        },
+        {
+          "id": "a9a6255d-7252-4309-901e-de7dc3b27e84",
+          "productId": "prod_hazelnut_mocha",
+          "nameSnapshot": "Hazelnut Mocha",
+          "priceSnapshot": 1,
+          "quantity": 1,
+          "subtotal": 1
+        }
+      ]
+    },
     {
       "id": "ord_252c0732-c1c0-4f3f-af3f-896b1cec5609",
       "order_number": "CAF-1019",
