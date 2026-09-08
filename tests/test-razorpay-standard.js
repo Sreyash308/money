@@ -5,6 +5,7 @@
  * 2. POST /api/verify-payment (missing field rejection, signature mismatch rejection, valid HMAC verification)
  */
 
+process.env.NODE_ENV = 'test';
 const http = require('http');
 const crypto = require('crypto');
 const app = require('../server');
@@ -264,6 +265,7 @@ async function runRazorpayStandardTests() {
   console.log(`Razorpay Tests: ${passed} PASSED, ${failed} FAILED`);
   console.log(`========================================\n`);
 
+  await resetOrders();
   server.close();
   if (failed > 0) {
     process.exit(1);

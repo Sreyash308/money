@@ -460,7 +460,11 @@
       </button>
     </nav>
 
-    <div style="display: flex; align-items: center; gap: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <button class="btn btn-secondary btn-sm" id="btn-sync-git" title="Sync all menu changes to GitHub repository" style="border-color: #27ae60; color: #27ae60; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; padding: 0.35rem 0.75rem;">
+        <span>☁️</span>
+        <span id="sync-git-text">Sync to Git</span>
+      </button>
       <span style="font-size: 0.84rem; color: var(--admin-text-muted);" id="user-display">Loading session...</span>
       <button class="btn btn-secondary btn-sm" id="logout-btn" style="border-color: var(--admin-border); color: var(--admin-text-main);">Sign Out</button>
     </div>
@@ -840,6 +844,39 @@
         document.documentElement.classList.remove('is-authenticated');
         window.location.reload();
       });
+
+      const syncGitBtn = document.getElementById('btn-sync-git');
+      if (syncGitBtn) {
+        syncGitBtn.addEventListener('click', async () => {
+          const syncText = document.getElementById('sync-git-text');
+          if (syncText) syncText.textContent = 'Syncing...';
+          syncGitBtn.disabled = true;
+          try {
+            const res = await adminFetch('/api/admin/sync-git', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: 'chore(menu): manual sync from admin dashboard' })
+            });
+            const json = await res.json();
+            if (json.success) {
+              if (syncText) syncText.textContent = '✓ Synced to Git';
+              showToast('Menu catalog successfully synced to GitHub!', 'success');
+              setTimeout(() => {
+                if (syncText) syncText.textContent = 'Sync to Git';
+                syncGitBtn.disabled = false;
+              }, 3000);
+            } else {
+              showToast(json.error?.message || 'Failed to sync with git', 'error');
+              if (syncText) syncText.textContent = 'Sync to Git';
+              syncGitBtn.disabled = false;
+            }
+          } catch (err) {
+            showToast('Sync error: ' + err.message, 'error');
+            if (syncText) syncText.textContent = 'Sync to Git';
+            syncGitBtn.disabled = false;
+          }
+        });
+      }
     }
 
     async function verifySession() {

@@ -12,9 +12,10 @@ async function seed() {
   await db.initDb();
 
   const now = new Date().toISOString();
-
+  const diskCatalog = require('../lib/catalog-sync').loadCatalogFromDisk();
+  
   // 1. Categories
-  const categories = [
+  const categories = diskCatalog?.categories || [
     { id: 'cat_coffee', name: 'Coffee & Brews', slug: 'coffee', description: 'Single-origin pour overs, slow cold brews & artisanal espresso', sort_order: 1 },
     { id: 'cat_cold', name: 'Coolers & Iced', slug: 'cold', description: 'Handcrafted iced teas, fruit sodas and ceremonial matcha', sort_order: 2 },
     { id: 'cat_tea', name: 'Tea & Infusions', slug: 'tea', description: 'Estate orthodox teas, spiced pots and herbal botanical tisanes', sort_order: 3 },
@@ -28,14 +29,14 @@ async function seed() {
       await db.run(
         `INSERT INTO categories (id, name, slug, description, sort_order, active, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
-        [cat.id, cat.name, cat.slug, cat.description, cat.sort_order, now, now]
+        [cat.id, cat.name, cat.slug, cat.description, cat.sort_order || cat.sortOrder || 1, now, now]
       );
       console.log(`  + Category: ${cat.name}`);
     }
   }
 
-  // 2. Products from current Ochre menu
-  const products = [
+  // 2. Products (Loaded from data/menu.json with fallback)
+  const products = diskCatalog?.products || [
     // Coffee & Brews
     {
       id: 'prod_caramel_latte',
@@ -108,102 +109,102 @@ async function seed() {
       slug: 'single-origin-pour-over',
       description: 'Hand-brewed filter coffee showcasing vibrant jasmine, bergamot, and sweet stone fruit notes.',
       price: 210,
-      imageUrl: 'assets/gallery_pourover.jpg',
+      imageUrl: 'assets/coffee_mug.png',
       categoryId: 'cat_coffee',
       isVeg: 1,
       isCold: 0,
-      originTag: 'Araku Valley Micro-lot · Light Roast',
+      originTag: 'Light Roast · Complex',
       sortOrder: 6
+    },
+    {
+      id: 'prod_aeropress_reserve',
+      name: 'AeroPress Reserve',
+      slug: 'aeropress-reserve',
+      description: 'Immersion brewed cup with round body, black tea sweetness, and crisp green apple finish.',
+      price: 210,
+      imageUrl: 'assets/coffee_mug.png',
+      categoryId: 'cat_coffee',
+      isVeg: 1,
+      isCold: 0,
+      originTag: 'Medium-Light Roast',
+      sortOrder: 7
     },
 
     // Coolers & Iced
     {
-      id: 'prod_iced_matcha_latte',
-      name: 'Iced Matcha Latte',
-      slug: 'iced-matcha-latte',
-      description: 'First-harvest Uji ceremonial matcha hand-whisked to order over chilled milk and ice.',
-      price: 199,
-      imageUrl: 'assets/matcha_cooler.png',
-      categoryId: 'cat_cold',
-      isVeg: 1,
-      isCold: 1,
-      originTag: 'Antioxidant Rich · Stone Ground',
-      sortOrder: 7
-    },
-    {
-      id: 'prod_blueberry_lemonade',
-      name: 'Blueberry Lemonade',
-      slug: 'blueberry-lemonade',
-      description: 'Wild Himalayan blueberry compote, cold-pressed lemon juice, and sparkling soda.',
+      id: 'prod_cascara_fizz',
+      name: 'Cascara Coffee Cherry Fizz',
+      slug: 'cascara-fizz',
+      description: 'Sparkling infusion of upcycled coffee fruit husks, wild mountain honey, and Persian lime.',
       price: 179,
-      imageUrl: 'assets/matcha_cooler.png',
+      imageUrl: 'assets/iced_coffee.png',
       categoryId: 'cat_cold',
       isVeg: 1,
       isCold: 1,
-      originTag: 'Tangy, Fruity & Refreshing',
+      originTag: 'Fruity & Effervescent',
       sortOrder: 8
     },
     {
-      id: 'prod_watermelon_cooler',
-      name: 'Watermelon Cooler',
-      slug: 'watermelon-cooler',
-      description: 'Cold-pressed watermelon, crushed mint sprigs, lime zest, and a touch of rock salt.',
-      price: 169,
-      imageUrl: 'assets/matcha_cooler.png',
+      id: 'prod_yuzu_espresso_tonic',
+      name: 'Yuzu Cold Espresso Tonic',
+      slug: 'yuzu-espresso-tonic',
+      description: 'Layered double shot espresso over bitter botanical tonic water and Japanese yuzu citrus.',
+      price: 199,
+      imageUrl: 'assets/iced_coffee.png',
       categoryId: 'cat_cold',
       isVeg: 1,
       isCold: 1,
-      originTag: 'Hydrating · Pure Juice',
+      originTag: 'Crisp & Uplifting',
       sortOrder: 9
     },
     {
-      id: 'prod_peach_iced_tea',
-      name: 'Peach Iced Tea',
-      slug: 'peach-iced-tea',
-      description: 'Nilgiri high-grown orthodox black tea steeped cold with sweet white peach nectar.',
-      price: 169,
+      id: 'prod_ceremonial_matcha',
+      name: 'Iced Ceremonial Matcha',
+      slug: 'iced-matcha-latte',
+      description: 'First-harvest Uji matcha hand-whisked and poured over ice with velvety oat milk.',
+      price: 220,
       imageUrl: 'assets/iced_coffee.png',
       categoryId: 'cat_cold',
       isVeg: 1,
       isCold: 1,
-      originTag: 'Light & Perfectly Chilled',
+      originTag: 'Uji Kyoto · Stone Ground',
       sortOrder: 10
-    },
-    {
-      id: 'prod_espresso_tonic',
-      name: 'Cold Brew Espresso Tonic',
-      slug: 'espresso-tonic',
-      description: 'Double espresso floated over botanical Indian tonic water with a twist of charred orange peel.',
-      price: 185,
-      imageUrl: 'assets/iced_coffee.png',
-      categoryId: 'cat_cold',
-      isVeg: 1,
-      isCold: 1,
-      originTag: 'Effervescent · Citrusy',
-      sortOrder: 11
     },
 
     // Tea & Infusions
     {
-      id: 'prod_masala_chai_pot',
-      name: 'Estate Masala Chai Pot',
-      slug: 'estate-masala-chai',
-      description: 'Slow-simmered Assam orthodox leaf brewed with fresh ginger, green cardamom, and whole spices.',
-      price: 140,
+      id: 'prod_first_flush_darjeeling',
+      name: 'Spring First Flush Darjeeling',
+      slug: 'first-flush-darjeeling',
+      description: 'Delicate muscatel grape notes with a pale golden liquor from high-altitude Himalayan estates.',
+      price: 169,
       imageUrl: 'assets/coffee_mug.png',
       categoryId: 'cat_tea',
       isVeg: 1,
       isCold: 0,
-      originTag: 'Served in Clay Kulhad Pot',
+      originTag: 'Whole Leaf · Orthodox',
+      sortOrder: 11
+    },
+    {
+      id: 'prod_masala_chai_roasters',
+      name: 'Roasters Pot Masala Chai',
+      slug: 'masala-chai',
+      description: 'Assam orthodox black tea slow-simmered with crushed green cardamom, fresh ginger & whole milk.',
+      price: 139,
+      imageUrl: 'assets/coffee_mug.png',
+      categoryId: 'cat_tea',
+      isVeg: 1,
+      isCold: 0,
+      originTag: 'Fragrant & Comforting',
       sortOrder: 12
     },
     {
-      id: 'prod_hibiscus_rose_tisane',
-      name: 'Hibiscus Rose Tisane',
-      slug: 'hibiscus-rose-tisane',
-      description: 'Caffeine-free whole dried ruby hibiscus calyces, organic rose petals, and lemongrass.',
-      price: 150,
-      imageUrl: 'assets/matcha_cooler.png',
+      id: 'prod_hibiscus_berry_tisane',
+      name: 'Wild Hibiscus Berry Tisane',
+      slug: 'hibiscus-berry-tisane',
+      description: 'Caffeine-free ruby crimson infusion of Egyptian hibiscus calyces and crushed summer berries.',
+      price: 159,
+      imageUrl: 'assets/iced_coffee.png',
       categoryId: 'cat_tea',
       isVeg: 1,
       isCold: 1,
@@ -269,20 +270,40 @@ async function seed() {
   ];
 
   for (const prod of products) {
-    const existing = await db.get('SELECT id FROM products WHERE slug = ?', [prod.slug]);
+    const existing = await db.get('SELECT id FROM products WHERE id = ? OR slug = ?', [prod.id, prod.slug]);
+    const isVeg = prod.isVeg !== undefined ? prod.isVeg : (prod.is_veg !== undefined ? prod.is_veg : 1);
+    const isCold = prod.isCold !== undefined ? prod.isCold : (prod.is_cold !== undefined ? prod.is_cold : 0);
+    const imgUrl = prod.imageUrl || prod.image_url || 'assets/coffee_mug.png';
+    const catId = prod.categoryId || prod.category_id || 'cat_coffee';
+    const originTag = prod.originTag || prod.origin_tag || '';
+    const sortOrder = prod.sortOrder || prod.sort_order || 99;
+    const available = prod.available !== undefined ? (prod.available ? 1 : 0) : 1;
+
     if (!existing) {
       await db.run(
         `INSERT INTO products (
           id, name, slug, description, price, image_url, category_id,
           is_veg, is_cold, origin_tag, available, active, sort_order,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
         [
-          prod.id, prod.name, prod.slug, prod.description, prod.price, prod.imageUrl, prod.categoryId,
-          prod.isVeg, prod.isCold, prod.originTag, prod.sortOrder, now, now
+          prod.id, prod.name, prod.slug, prod.description, prod.price, imgUrl, catId,
+          isVeg, isCold, originTag, available, sortOrder, now, now
         ]
       );
       console.log(`  + Product: ${prod.name} (₹${prod.price})`);
+    } else {
+      // Synchronize updated prices/availability from data/menu.json so changes made in admin portal stay intact
+      await db.run(
+        `UPDATE products
+         SET name = ?, description = ?, price = ?, image_url = ?, category_id = ?,
+             is_veg = ?, is_cold = ?, origin_tag = ?, available = ?, sort_order = ?, updated_at = ?
+         WHERE id = ?`,
+        [
+          prod.name, prod.description, prod.price, imgUrl, catId,
+          isVeg, isCold, originTag, available, sortOrder, now, existing.id
+        ]
+      );
     }
   }
 

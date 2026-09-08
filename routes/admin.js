@@ -22,6 +22,7 @@ const {
 } = require('../middleware/auth');
 const { notifyMenuChange } = require('./menu');
 const { notifyOrderChange } = require('./orders');
+const { exportAndSyncCatalog } = require('../lib/catalog-sync');
 
 // POST /api/admin/login - Admin Login
 router.post('/login', async (req, res) => {
@@ -509,6 +510,10 @@ router.post('/products', requireOwner, verifyCsrfToken, async (req, res) => {
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'CREATE', productId: id, name, price: numPrice, available: isAvail === 1 });
 
+    exportAndSyncCatalog({ commitMessage: `chore(menu): admin created product ${name} (₹${numPrice})` }).catch(err => {
+      console.warn('Background git sync on create:', err.message);
+    });
+
     res.status(201).json({
       success: true,
       data: { id, name, slug, price: numPrice, available: isAvail === 1 }
@@ -583,6 +588,10 @@ router.put('/products/:id', requireOwner, verifyCsrfToken, async (req, res) => {
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'UPDATE', productId: id, name: name || existing.name, price: numPrice || existing.price, available: isAvail !== null ? isAvail === 1 : existing.available === 1 });
 
+    exportAndSyncCatalog({ commitMessage: `chore(menu): admin updated ${name || existing.name} (price: ₹${numPrice || existing.price})` }).catch(err => {
+      console.warn('Background git sync on update:', err.message);
+    });
+
     res.json({ success: true, message: 'Product updated successfully.' });
   } catch (err) {
     console.error('Error editing product:', err);
@@ -628,6 +637,10 @@ router.patch('/products/:id/availability', requireOwner, verifyCsrfToken, async 
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'AVAILABILITY', productId: id, name: product.name, available: newAvailability === 1 });
 
+    exportAndSyncCatalog({ commitMessage: `chore(menu): admin set ${product.name} to ${newAvailability === 1 ? 'available' : 'sold out'}` }).catch(err => {
+      console.warn('Background git sync on availability toggle:', err.message);
+    });
+
     res.json({
       success: true,
       data: {
@@ -664,12 +677,37 @@ router.delete('/products/:id', requireOwner, verifyCsrfToken, async (req, res) =
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'DELETE', productId: id });
 
+    exportAndSyncCatalog({ commitMessage: `chore(menu): admin removed product ${id}` }).catch(err => {
+      console.warn('Background git sync on delete:', err.message);
+    });
+
     res.json({ success: true, message: 'Product removed from menu.' });
   } catch (err) {
     console.error('Error deleting product:', err);
     res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Failed to remove product.' }
+    });
+  }
+});
+
+// POST /api/admin/sync-git - Manually trigger sync of menu catalog to GitHub
+router.post('/sync-git', requireOwner, verifyCsrfToken, async (req, res) => {
+  try {
+    const result = await exportAndSyncCatalog({ commitMessage: req.body.message || 'chore(menu): manual sync from admin portal' });
+    res.json({
+      success: true,
+      data: {
+        lastSyncedAt: result.catalog.last_synced_at,
+        productsCount: result.catalog.products.length,
+        git: result.git
+      }
+    });
+  } catch (err) {
+    console.error('Error syncing to git:', err);
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYNC_ERROR', message: err.message || 'Failed to sync with git repository.' }
     });
   }
 });

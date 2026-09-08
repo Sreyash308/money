@@ -3,6 +3,7 @@
  * Executes TESTS A through G as specified in the Final Production Audit
  */
 
+process.env.NODE_ENV = 'test';
 const http = require('http');
 const crypto = require('crypto');
 const app = require('../server');

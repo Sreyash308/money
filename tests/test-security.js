@@ -17,6 +17,7 @@
  * 12. Public API Rate Limiting
  */
 
+process.env.NODE_ENV = 'test';
 const http = require('http');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -502,6 +503,7 @@ async function runSecuritySuite() {
   console.log(`Security Test Results: ${passed} PASSED, ${failed} FAILED`);
   console.log(`========================================\n`);
 
+  await resetOrders();
   server.close();
   if (failed > 0) process.exit(1);
 }
