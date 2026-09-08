@@ -1,0 +1,340 @@
+{
+  "last_synced_at": "2026-09-08T17:18:14.845Z",
+  "categories": [
+    {
+      "id": "cat_coffee",
+      "name": "Coffee & Brews",
+      "slug": "coffee",
+      "description": "Single-origin pour overs, slow cold brews & artisanal espresso",
+      "sort_order": 1
+    },
+    {
+      "id": "cat_cold",
+      "name": "Coolers & Iced",
+      "slug": "cold",
+      "description": "Handcrafted iced teas, fruit sodas and ceremonial matcha",
+      "sort_order": 2
+    },
+    {
+      "id": "cat_tea",
+      "name": "Tea & Infusions",
+      "slug": "tea",
+      "description": "Estate orthodox teas, spiced pots and herbal botanical tisanes",
+      "sort_order": 3
+    },
+    {
+      "id": "cat_food",
+      "name": "Kitchen & Bites",
+      "slug": "food",
+      "description": "Slow-fermented sourdough toasties, spicy wraps and seasoned fries",
+      "sort_order": 4
+    },
+    {
+      "id": "cat_dessert",
+      "name": "Bakery & Sweet",
+      "slug": "dessert",
+      "description": "Warm dark chocolate brownies and fresh morning bakes",
+      "sort_order": 5
+    }
+  ],
+  "products": [
+    {
+      "id": "prod_caramel_latte",
+      "name": "Caramel Latte",
+      "slug": "caramel-latte",
+      "description": "Chikmagalur single-origin double shot espresso, handcrafted amber caramel reduction, velvety textured milk.",
+      "price": 189,
+      "image_url": "assets/coffee_mug.png",
+      "category_id": "cat_coffee",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Chikmagalur Washed Lot",
+      "sort_order": 1,
+      "available": 1
+    },
+    {
+      "id": "prod_hazelnut_mocha",
+      "name": "Hazelnut Mocha",
+      "slug": "hazelnut-mocha",
+      "description": "Rich Valrhona dark cocoa blended with toasted hazelnut puree and espresso.",
+      "price": 199,
+      "image_url": "assets/coffee_mug.png",
+      "category_id": "cat_coffee",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Dark Roast · Velvety",
+      "sort_order": 2,
+      "available": 1
+    },
+    {
+      "id": "prod_spanish_cold_brew",
+      "name": "Spanish Cold Brew",
+      "slug": "spanish-cold-brew",
+      "description": "18-hour cold brew concentrate with sweetened condensed milk and slow-melting ice.",
+      "price": 199,
+      "image_url": "assets/iced_coffee.png",
+      "category_id": "cat_coffee",
+      "is_veg": 1,
+      "is_cold": 1,
+      "origin_tag": "Signature Cold Pour",
+      "sort_order": 3,
+      "available": 1
+    },
+    {
+      "id": "prod_oat_milk_cappuccino",
+      "name": "Oat Milk Cappuccino",
+      "slug": "oat-milk-cappuccino",
+      "description": "Creamy, cozy & totally dreamy. Barista oat milk microfoam with a dusting of nutmeg.",
+      "price": 189,
+      "image_url": "assets/coffee_mug.png",
+      "category_id": "cat_coffee",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Dairy-Free · Gentle Roast",
+      "sort_order": 4,
+      "available": 1
+    },
+    {
+      "id": "prod_vanilla_cinnamon_latte",
+      "name": "Vanilla Cinnamon Latte",
+      "slug": "vanilla-cinnamon-latte",
+      "description": "Warm Madagascar vanilla infusion with freshly ground Ceylon cinnamon bark.",
+      "price": 199,
+      "image_url": "assets/coffee_mug.png",
+      "category_id": "cat_coffee",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Spiced & Comforting",
+      "sort_order": 5,
+      "available": 1
+    },
+    {
+      "id": "prod_pour_over_v60",
+      "name": "Single-Origin Pour Over (V60)",
+      "slug": "single-origin-pour-over",
+      "description": "Hand-brewed filter coffee showcasing vibrant jasmine, bergamot, and sweet stone fruit notes.",
+      "price": 210,
+      "image_url": "assets/gallery_pourover.jpg",
+      "category_id": "cat_coffee",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Araku Valley Micro-lot · Light Roast",
+      "sort_order": 6,
+      "available": 1
+    },
+    {
+      "id": "prod_iced_matcha_latte",
+      "name": "Iced Matcha Latte",
+      "slug": "iced-matcha-latte",
+      "description": "First-harvest Uji ceremonial matcha hand-whisked to order over chilled milk and ice.",
+      "price": 199,
+      "image_url": "assets/matcha_cooler.png",
+      "category_id": "cat_cold",
+      "is_veg": 1,
+      "is_cold": 1,
+      "origin_tag": "Antioxidant Rich · Stone Ground",
+      "sort_order": 7,
+      "available": 1
+    },
+    {
+      "id": "prod_blueberry_lemonade",
+      "name": "Blueberry Lemonade",
+      "slug": "blueberry-lemonade",
+      "description": "Wild Himalayan blueberry compote, cold-pressed lemon juice, and sparkling soda.",
+      "price": 179,
+      "image_url": "assets/matcha_cooler.png",
+      "category_id": "cat_cold",
+      "is_veg": 1,
+      "is_cold": 1,
+      "origin_tag": "Tangy, Fruity & Refreshing",
+      "sort_order": 8,
+      "available": 1
+    },
+    {
+      "id": "prod_watermelon_cooler",
+      "name": "Watermelon Cooler",
+      "slug": "watermelon-cooler",
+      "description": "Cold-pressed watermelon, crushed mint sprigs, lime zest, and a touch of rock salt.",
+      "price": 169,
+      "image_url": "assets/matcha_cooler.png",
+      "category_id": "cat_cold",
+      "is_veg": 1,
+      "is_cold": 1,
+      "origin_tag": "Hydrating · Pure Juice",
+      "sort_order": 9,
+      "available": 1
+    },
+    {
+      "id": "prod_peach_iced_tea",
+      "name": "Peach Iced Tea",
+      "slug": "peach-iced-tea",
+      "description": "Nilgiri high-grown orthodox black tea steeped cold with sweet white peach nectar.",
+      "price": 169,
+      "image_url": "assets/iced_coffee.png",
+      "category_id": "cat_cold",
+      "is_veg": 1,
+      "is_cold": 1,
+      "origin_tag": "Light & Perfectly Chilled",
+      "sort_order": 10,
+      "available": 1
+    },
+    {
+      "id": "prod_espresso_tonic",
+      "name": "Cold Brew Espresso Tonic",
+      "slug": "espresso-tonic",
+      "description": "Double espresso floated over botanical Indian tonic water with a twist of charred orange peel.",
+      "price": 185,
+      "image_url": "assets/iced_coffee.png",
+      "category_id": "cat_cold",
+      "is_veg": 1,
+      "is_cold": 1,
+      "origin_tag": "Effervescent · Citrusy",
+      "sort_order": 11,
+      "available": 1
+    },
+    {
+      "id": "prod_masala_chai_pot",
+      "name": "Estate Masala Chai Pot",
+      "slug": "estate-masala-chai",
+      "description": "Slow-simmered Assam orthodox leaf brewed with fresh ginger, green cardamom, and whole spices.",
+      "price": 140,
+      "image_url": "assets/coffee_mug.png",
+      "category_id": "cat_tea",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Served in Clay Kulhad Pot",
+      "sort_order": 12,
+      "available": 1
+    },
+    {
+      "id": "prod_hibiscus_rose_tisane",
+      "name": "Hibiscus Rose Tisane",
+      "slug": "hibiscus-rose-tisane",
+      "description": "Caffeine-free whole dried ruby hibiscus calyces, organic rose petals, and lemongrass.",
+      "price": 150,
+      "image_url": "assets/matcha_cooler.png",
+      "category_id": "cat_tea",
+      "is_veg": 1,
+      "is_cold": 1,
+      "origin_tag": "Floral & Tart",
+      "sort_order": 13,
+      "available": 1
+    },
+    {
+      "id": "prod_grilled_cheese",
+      "name": "Grilled Cheese Sandwich",
+      "slug": "grilled-cheese-sandwich",
+      "description": "Classic comfort. Sharp cheddar and mozzarella melted inside toasted country sourdough.",
+      "price": 149,
+      "image_url": "assets/sandwich_fries.png",
+      "category_id": "cat_food",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "With Garlic Herb Dip",
+      "sort_order": 14,
+      "available": 1
+    },
+    {
+      "id": "prod_paneer_tikka_wrap",
+      "name": "Paneer Tikka Wrap",
+      "slug": "paneer-tikka-wrap",
+      "description": "Tandoor-marinated cottage cheese cubes, charred bell peppers, mint emulsion in whole-wheat flatbread.",
+      "price": 169,
+      "image_url": "assets/sandwich_fries.png",
+      "category_id": "cat_food",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Spicy, Wholesome & Satisfying",
+      "sort_order": 15,
+      "available": 1
+    },
+    {
+      "id": "prod_peri_peri_fries",
+      "name": "Crispy Peri Peri Fries",
+      "slug": "peri-peri-fries",
+      "description": "Thick cut Idaho potatoes twice-fried and tossed in house-blended African peri peri spices.",
+      "price": 129,
+      "image_url": "assets/sandwich_fries.png",
+      "category_id": "cat_food",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Served in Ceramic Cup",
+      "sort_order": 16,
+      "available": 1
+    },
+    {
+      "id": "prod_chocolate_brownie",
+      "name": "Fudgy Chocolate Brownie",
+      "slug": "chocolate-brownie",
+      "description": "Belgian 70% dark chocolate brownie with sea salt flakes. Served warm with vanilla bean gelato.",
+      "price": 99,
+      "image_url": "assets/gallery_pastry.jpg",
+      "category_id": "cat_dessert",
+      "is_veg": 1,
+      "is_cold": 0,
+      "origin_tag": "Melts in Your Mouth",
+      "sort_order": 17,
+      "available": 1
+    }
+  ],
+  "tables": [
+    {
+      "table_number": 1,
+      "label": "Table 01 (Window Nook)",
+      "capacity": 2
+    },
+    {
+      "table_number": 2,
+      "label": "Table 02 (Window Nook)",
+      "capacity": 2
+    },
+    {
+      "table_number": 3,
+      "label": "Table 03 (Garden View)",
+      "capacity": 4
+    },
+    {
+      "table_number": 4,
+      "label": "Table 04 (Garden View)",
+      "capacity": 4
+    },
+    {
+      "table_number": 5,
+      "label": "Table 05 (Center Hall)",
+      "capacity": 4
+    },
+    {
+      "table_number": 6,
+      "label": "Table 06 (Quiet Booth)",
+      "capacity": 6
+    },
+    {
+      "table_number": 7,
+      "label": "Table 07 (Quiet Booth)",
+      "capacity": 6
+    },
+    {
+      "table_number": 8,
+      "label": "Table 08 (Espresso Bar)",
+      "capacity": 2
+    },
+    {
+      "table_number": 9,
+      "label": "Table 09 (Roastery View)",
+      "capacity": 4
+    },
+    {
+      "table_number": 10,
+      "label": "Table 10 (Communal Oak)",
+      "capacity": 8
+    }
+  ],
+  "settings": {
+    "restaurant_status": "OPEN",
+    "restaurant_name": "Ochre Coffee Roasters",
+    "phone": "+91-98765-43210",
+    "destination_vpa": "9182916879@ybl",
+    "currency": "INR",
+    "currency_symbol": "₹"
+  }
+}
