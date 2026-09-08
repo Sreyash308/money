@@ -461,10 +461,10 @@
     </nav>
 
     <div style="display: flex; align-items: center; gap: 0.75rem;">
-      <button class="btn btn-secondary btn-sm" id="btn-sync-git" title="Sync all menu changes to GitHub repository" style="border-color: #27ae60; color: #27ae60; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; padding: 0.35rem 0.75rem;">
-        <span>☁️</span>
-        <span id="sync-git-text">Sync to Git</span>
-      </button>
+      <div id="btn-sync-git" title="Every change in the Admin Portal automatically commits and syncs to GitHub. Click to verify live connection." style="border: 1px solid rgba(39, 174, 96, 0.4); background: rgba(39, 174, 96, 0.12); color: #27ae60; border-radius: 20px; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; user-select: none;">
+        <span id="sync-status-dot" style="width: 8px; height: 8px; background: #27ae60; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px rgba(39, 174, 96, 0.6);"></span>
+        <span id="sync-git-text">Auto-Sync Active (GitHub)</span>
+      </div>
       <span style="font-size: 0.84rem; color: var(--admin-text-muted);" id="user-display">Loading session...</span>
       <button class="btn btn-secondary btn-sm" id="logout-btn" style="border-color: var(--admin-border); color: var(--admin-text-main);">Sign Out</button>
     </div>
@@ -779,6 +779,47 @@
       } catch (e) {}
     }
 
+    function showToast(message, type = 'info') {
+      let container = document.getElementById('toast-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = 'position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 99999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;';
+        document.body.appendChild(container);
+      }
+      const toast = document.createElement('div');
+      const bg = type === 'error' ? '#eb5757' : (type === 'success' ? '#27ae60' : '#1e1e1e');
+      toast.style.cssText = `background: ${bg}; color: #fff; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.3); pointer-events: auto; transform: translateY(10px); opacity: 0; transition: all 0.25s ease; border: 1px solid rgba(255,255,255,0.15);`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+      });
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 250);
+      }, 4000);
+    }
+
+    function flashSyncStatus(text = '✓ Auto-synced to Git') {
+      const syncText = document.getElementById('sync-git-text');
+      const syncDot = document.getElementById('sync-status-dot');
+      if (syncText) syncText.textContent = text;
+      if (syncDot) {
+        syncDot.style.background = '#2ecc71';
+        syncDot.style.boxShadow = '0 0 10px #2ecc71';
+      }
+      setTimeout(() => {
+        if (syncText) syncText.textContent = 'Auto-Sync Active (GitHub)';
+        if (syncDot) {
+          syncDot.style.background = '#27ae60';
+          syncDot.style.boxShadow = '0 0 6px rgba(39, 174, 96, 0.6)';
+        }
+      }, 3500);
+    }
+
     async function initAdminAuth() {
       const loginOverlay = document.getElementById('login-overlay');
       const loginForm = document.getElementById('login-form');
@@ -849,31 +890,25 @@
       if (syncGitBtn) {
         syncGitBtn.addEventListener('click', async () => {
           const syncText = document.getElementById('sync-git-text');
-          if (syncText) syncText.textContent = 'Syncing...';
-          syncGitBtn.disabled = true;
+          if (syncText) syncText.textContent = 'Verifying Git...';
           try {
             const res = await adminFetch('/api/admin/sync-git', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: 'chore(menu): manual sync from admin dashboard' })
+              body: JSON.stringify({ message: 'chore(menu): verified sync from admin dashboard' })
             });
             const json = await res.json();
             if (json.success) {
-              if (syncText) syncText.textContent = '✓ Synced to Git';
-              showToast('Menu catalog successfully synced to GitHub!', 'success');
-              setTimeout(() => {
-                if (syncText) syncText.textContent = 'Sync to Git';
-                syncGitBtn.disabled = false;
-              }, 3000);
+              const sha = json.data?.git?.sha ? ` (${json.data.git.sha.slice(0, 7)})` : '';
+              flashSyncStatus('✓ Auto-synced to Git');
+              showToast(`Auto-sync is active. Menu catalog is committed & up to date on GitHub!${sha}`, 'success');
             } else {
               showToast(json.error?.message || 'Failed to sync with git', 'error');
-              if (syncText) syncText.textContent = 'Sync to Git';
-              syncGitBtn.disabled = false;
+              flashSyncStatus('⚠️ Sync check failed');
             }
           } catch (err) {
-            showToast('Sync error: ' + err.message, 'error');
-            if (syncText) syncText.textContent = 'Sync to Git';
-            syncGitBtn.disabled = false;
+            showToast('Sync check error: ' + err.message, 'error');
+            flashSyncStatus('⚠️ Sync error');
           }
         });
       }
@@ -1346,26 +1381,43 @@
 
     async function toggleProductAvailability(id) {
       try {
-        await adminFetch(`/api/admin/products/${id}/availability`, {
+        const res = await adminFetch(`/api/admin/products/${id}/availability`, {
           method: 'PATCH'
         });
-        broadcastMenuSync();
-        fetchAdminMenu();
+        const j = await res.json();
+        if (res.ok) {
+          broadcastMenuSync();
+          fetchAdminMenu();
+          const statusText = j.data?.available ? 'IN STOCK' : 'SOLD OUT';
+          const sha = j.git?.sha ? ` (${j.git.sha.slice(0, 7)})` : '';
+          showToast(`✓ ${j.data?.name || 'Product'} set to ${statusText} & auto-synced to GitHub!${sha}`, 'success');
+          flashSyncStatus('✓ Auto-synced to Git');
+        } else {
+          showToast('Failed to toggle availability.', 'error');
+        }
       } catch (err) {
-        alert('Failed to toggle availability.');
+        showToast('Failed to toggle availability.', 'error');
       }
     }
 
     async function deleteProduct(id) {
       if (!confirm('Remove this product from the menu?')) return;
       try {
-        await adminFetch(`/api/admin/products/${id}`, {
+        const res = await adminFetch(`/api/admin/products/${id}`, {
           method: 'DELETE'
         });
-        broadcastMenuSync();
-        fetchAdminMenu();
+        const j = await res.json();
+        if (res.ok) {
+          broadcastMenuSync();
+          fetchAdminMenu();
+          const sha = j.git?.sha ? ` (${j.git.sha.slice(0, 7)})` : '';
+          showToast(`✓ Product removed & auto-synced to GitHub!${sha}`, 'success');
+          flashSyncStatus('✓ Auto-synced to Git');
+        } else {
+          showToast('Failed to delete product.', 'error');
+        }
       } catch (err) {
-        alert('Failed to delete product.');
+        showToast('Failed to delete product.', 'error');
       }
     }
 
@@ -1421,6 +1473,13 @@
       const url = id ? `/api/admin/products/${id}` : '/api/admin/products';
       const method = id ? 'PUT' : 'POST';
 
+      const submitBtn = prodForm.querySelector('button[type="submit"]');
+      const origText = submitBtn ? submitBtn.textContent : 'Save Product';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving & auto-syncing to Git...';
+      }
+
       try {
         const res = await adminFetch(url, {
           method,
@@ -1429,15 +1488,24 @@
           },
           body: JSON.stringify(payload)
         });
+        const j = await res.json();
         if (res.ok) {
           closeProductModal();
           broadcastMenuSync();
           fetchAdminMenu();
+          const sha = j.git?.sha ? ` (${j.git.sha.slice(0, 7)})` : '';
+          showToast(`✓ "${name}" saved & automatically committed to GitHub!${sha}`, 'success');
+          flashSyncStatus('✓ Auto-synced to Git');
         } else {
-          alert('Failed to save product.');
+          showToast(j.error?.message || 'Failed to save product.', 'error');
         }
       } catch (e) {
-        alert('Network error.');
+        showToast('Network error while saving product.', 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = origText;
+        }
       }
     });
 
