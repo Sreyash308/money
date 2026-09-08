@@ -96,20 +96,40 @@ async function runRazorpayStandardTests() {
     if (res.body.error?.code !== 'INVALID_AMOUNT') throw new Error(`Expected INVALID_AMOUNT, got ${res.body.error?.code}`);
   });
 
-  await test('Handle Razorpay auth failure with HTTP 401 when API credentials are rejected', async () => {
+  await test('Create live Razorpay order with valid amount and verify standard response structure', async () => {
     const res = await request('POST', '/api/create-order', {
-      amount: 50000, // 500.00 INR (50000 paise)
+      amount: 25000, // 250.00 INR (25000 paise)
       currency: 'INR',
-      receipt: 'rcpt_test_500'
+      receipt: 'rcpt_live_standard'
     });
-    // With test keys rzp_test_TZb2HAumP0qRvS, Razorpay API responds with 401 Authentication failed
-    if (res.status !== 401 && res.status !== 200) {
-      throw new Error(`Expected 401 (or 200 if credentials were active), got ${res.status}`);
+    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status} (${JSON.stringify(res.body)})`);
+    if (!res.body.order_id || !res.body.order_id.startsWith('order_')) {
+      throw new Error(`Expected order_id starting with order_, got ${res.body.order_id}`);
     }
-    if (res.status === 401) {
-      if (res.body.error?.code !== 'AUTH_FAILED') {
-        throw new Error(`Expected error code AUTH_FAILED, got ${res.body.error?.code}`);
-      }
+    if (res.body.amount !== 25000) throw new Error(`Expected amount 25000, got ${res.body.amount}`);
+    if (res.body.currency !== 'INR') throw new Error(`Expected currency INR, got ${res.body.currency}`);
+  });
+
+  await test('Handle Razorpay auth failure with HTTP 401 when API credentials fail authentication', async () => {
+    const originalKeyId = process.env.RAZORPAY_KEY_ID;
+    const originalSecret = process.env.RAZORPAY_KEY_SECRET;
+
+    // Temporarily set invalid keys
+    process.env.RAZORPAY_KEY_ID = 'rzp_test_invalidKey12345';
+    process.env.RAZORPAY_KEY_SECRET = 'invalidSecretValue12345';
+
+    try {
+      const res = await request('POST', '/api/create-order', {
+        amount: 50000,
+        currency: 'INR',
+        receipt: 'rcpt_auth_fail_test'
+      });
+      if (res.status !== 401) throw new Error(`Expected 401 for bad credentials, got ${res.status}`);
+      if (res.body.error?.code !== 'AUTH_FAILED') throw new Error(`Expected AUTH_FAILED code, got ${res.body.error?.code}`);
+    } finally {
+      // Restore valid credentials
+      process.env.RAZORPAY_KEY_ID = originalKeyId;
+      process.env.RAZORPAY_KEY_SECRET = originalSecret;
     }
   });
 
