@@ -12,6 +12,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
+ * HTML Escaping Utility for XSS Prevention
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Toast Notification Utility
  */
 function showToast(message, type = 'info') {
@@ -22,7 +35,7 @@ function showToast(message, type = 'info') {
   toast.className = `ochre-toast ${type === 'error' ? 'toast-error' : type === 'success' ? 'toast-success' : ''}`;
   toast.innerHTML = `
     <span>${type === 'success' ? '✓' : type === 'error' ? '⚠️' : 'ℹ️'}</span>
-    <span>${message}</span>
+    <span>${escapeHtml(message)}</span>
   `;
   container.appendChild(toast);
 
@@ -172,9 +185,9 @@ const OchreCart = (() => {
           const isSoldOut = liveProd && !liveProd.available;
           return `
             <div class="cart-item-row" data-id="${item.id}" style="${isSoldOut ? 'opacity: 0.85; border-left: 3px solid #eb5757;' : ''}">
-              <img src="${item.imageUrl}" alt="${item.name}" class="cart-item-img">
+              <img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" class="cart-item-img">
               <div class="cart-item-meta">
-                <div class="cart-item-title">${item.name}</div>
+                <div class="cart-item-title">${escapeHtml(item.name)}</div>
                 <div class="cart-item-price">₹${item.price} × ${item.quantity} = ₹${item.price * item.quantity}</div>
                 ${isSoldOut ? '<div class="cart-item-sold-out-tag">⚠️ Sold Out — Please remove</div>' : ''}
               </div>
@@ -454,17 +467,17 @@ function renderMenuCards(products) {
         <div class="item-card-content">
           <div class="item-card-header">
             <div class="item-name-group">
-              <h3 class="item-card-title">${prod.name}</h3>
+              <h3 class="item-card-title">${escapeHtml(prod.name)}</h3>
               ${prod.is_cold ? '<span class="pill-tag tag-cold">COLD</span>' : ''}
               ${prod.is_veg ? '<span class="veg-icon-dot" title="Vegetarian"></span>' : ''}
             </div>
             <span class="item-card-price">&#8377;${prod.price}</span>
           </div>
 
-          <p class="item-card-desc">${prod.description || ''}</p>
+          <p class="item-card-desc">${escapeHtml(prod.description || '')}</p>
 
           <div class="item-card-footer">
-            ${prod.origin_tag ? `<span class="tag-origin">${prod.origin_tag}</span>` : '<span></span>'}
+            ${prod.origin_tag ? `<span class="tag-origin">${escapeHtml(prod.origin_tag)}</span>` : '<span></span>'}
           </div>
         </div>
 
@@ -742,7 +755,7 @@ function initCheckoutFlow() {
   let selectedTableNumbers = [];
   let selectedGuestCount = 2;
   let cachedTablesList = [];
-  let paymentMethod = 'UPI';
+  let paymentMethod = 'RAZORPAY';
 
   const overlay = document.getElementById('checkout-modal-overlay');
   const closeBtn = document.getElementById('checkout-modal-close');
@@ -775,21 +788,25 @@ function initCheckoutFlow() {
   }
 
   // 2. Payment Method Selection (Step 4)
+  const optPayRazorpay = document.getElementById('opt-pay-razorpay');
   const optPayUpi = document.getElementById('opt-pay-upi');
   const optPayCounter = document.getElementById('opt-pay-counter');
 
-  if (optPayUpi && optPayCounter) {
-    optPayUpi.addEventListener('click', () => {
-      paymentMethod = 'UPI';
-      optPayUpi.classList.add('is-selected');
-      optPayCounter.classList.remove('is-selected');
-    });
+  function selectPaymentMethod(method) {
+    paymentMethod = method;
+    if (optPayRazorpay) optPayRazorpay.classList.toggle('is-selected', method === 'RAZORPAY');
+    if (optPayUpi) optPayUpi.classList.toggle('is-selected', method === 'UPI');
+    if (optPayCounter) optPayCounter.classList.toggle('is-selected', method === 'COUNTER');
+  }
 
-    optPayCounter.addEventListener('click', () => {
-      paymentMethod = 'COUNTER';
-      optPayCounter.classList.add('is-selected');
-      optPayUpi.classList.remove('is-selected');
-    });
+  if (optPayRazorpay) {
+    optPayRazorpay.addEventListener('click', () => selectPaymentMethod('RAZORPAY'));
+  }
+  if (optPayUpi) {
+    optPayUpi.addEventListener('click', () => selectPaymentMethod('UPI'));
+  }
+  if (optPayCounter) {
+    optPayCounter.addEventListener('click', () => selectPaymentMethod('COUNTER'));
   }
 
   // Next / Continue button
@@ -880,8 +897,10 @@ function initCheckoutFlow() {
     if (nextBtn) {
       if (step === 5) {
         const total = OchreCart.getSubtotal();
-        if (paymentMethod === 'UPI') {
-          nextBtn.innerHTML = `<span>Pay ₹${total} via UPI</span> <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 10h10M11 6l4 4-4 4"/></svg>`;
+        if (paymentMethod === 'RAZORPAY') {
+          nextBtn.innerHTML = `<span>Pay ₹${total} via Razorpay</span> <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 10h10M11 6l4 4-4 4"/></svg>`;
+        } else if (paymentMethod === 'UPI') {
+          nextBtn.innerHTML = `<span>Pay ₹${total} via Direct UPI</span> <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 10h10M11 6l4 4-4 4"/></svg>`;
         } else {
           nextBtn.innerHTML = `<span>Place Order — Pay at Counter</span> <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 10h10M11 6l4 4-4 4"/></svg>`;
         }
@@ -1059,13 +1078,17 @@ function initCheckoutFlow() {
     }
     if (guestName) guestName.textContent = name;
     if (guestPhone) guestPhone.textContent = phone;
-    if (payMethod) payMethod.textContent = paymentMethod === 'UPI' ? '⚡ UPI (Razorpay)' : '💵 Pay at Counter';
+    if (payMethod) {
+      if (paymentMethod === 'RAZORPAY') payMethod.textContent = '💳 Razorpay Standard Checkout';
+      else if (paymentMethod === 'UPI') payMethod.textContent = '⚡ Direct UPI';
+      else payMethod.textContent = '💵 Pay at Counter';
+    }
 
     const cartItems = OchreCart.getItems();
     if (itemsList) {
       itemsList.innerHTML = cartItems.map(item => `
         <div class="review-item">
-          <span>${item.name} × ${item.quantity}</span>
+          <span>${escapeHtml(item.name)} × ${item.quantity}</span>
           <span style="font-weight: 700; color: var(--color-text-primary);">₹${item.price * item.quantity}</span>
         </div>
       `).join('');
@@ -1158,17 +1181,20 @@ function initCheckoutFlow() {
         return;
       }
 
-      // Handle Real Direct UPI & Razorpay Flow
+      // Handle Direct UPI
       if (paymentMethod === 'UPI') {
         OchreCart.clearCart();
         closeCheckoutModal();
+        showRealUpiModal(orderData);
+        return;
+      }
 
-        const payment = orderData.payment || {};
-        if (payment.razorpayOrderId && payment.keyId && typeof Razorpay !== 'undefined') {
-          launchRazorpayCheckout(orderData);
-        } else {
-          showRealUpiModal(orderData);
-        }
+      // Handle Razorpay Standard Web Checkout
+      if (paymentMethod === 'RAZORPAY') {
+        OchreCart.clearCart();
+        closeCheckoutModal();
+        launchRazorpayCheckout(orderData);
+        return;
       }
     } catch (err) {
       console.error('Submission error:', err);
@@ -1178,25 +1204,61 @@ function initCheckoutFlow() {
     }
   }
 
-  // Official Razorpay Standard Checkout (UPI Apps, QR, Cards, NetBanking)
-  function launchRazorpayCheckout(orderData) {
-    const payment = orderData.payment || {};
-    if (!payment.keyId || !payment.razorpayOrderId) {
+  // Official Razorpay Standard Web Checkout (Cards, NetBanking, UPI, Wallets)
+  async function launchRazorpayCheckout(orderData) {
+    let payment = orderData.payment || {};
+    let rzpOrderId = payment.razorpayOrderId || payment.order_id;
+    let keyId = payment.keyId || payment.key_id;
+
+    // STEP 1: If order_id or keyId is missing, call backend create-order endpoint
+    if (!rzpOrderId || !keyId) {
+      try {
+        const amountPaise = Math.round((orderData.total || 1) * 100);
+        const res = await fetch('/api/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amountPaise,
+            currency: 'INR',
+            receipt: orderData.orderNumber,
+            orderNumber: orderData.orderNumber
+          })
+        });
+        const rzpJson = await res.json();
+        if (rzpJson.success && (rzpJson.order_id || rzpJson.id)) {
+          rzpOrderId = rzpJson.order_id || rzpJson.id;
+          keyId = rzpJson.key_id || keyId;
+        } else {
+          showToast(rzpJson.error?.message || 'Unable to create Razorpay order. Switching to direct UPI.', 'error');
+          showRealUpiModal(orderData);
+          return;
+        }
+      } catch (err) {
+        console.warn('Error calling /api/create-order:', err);
+        showToast('Razorpay service unreachable. You can complete payment with direct UPI.', 'error');
+        showRealUpiModal(orderData);
+        return;
+      }
+    }
+
+    // STEP 2: Checkout Modal Launch
+    if (typeof Razorpay === 'undefined') {
+      showToast('Razorpay Checkout SDK not loaded. Showing direct UPI modal.', 'error');
       showRealUpiModal(orderData);
       return;
     }
 
-    const customerName = document.getElementById('checkout-name')?.value || orderData.customerName || 'Guest';
+    const customerName = document.getElementById('checkout-name')?.value || orderData.customerName || 'Ochre Guest';
     const customerPhone = document.getElementById('checkout-phone')?.value || orderData.customerPhone || '';
 
     const options = {
-      key: payment.keyId,
+      key: keyId,
       amount: payment.amount || Math.round(orderData.total * 100),
       currency: payment.currency || 'INR',
       name: 'Ochre Coffee Roasters',
       description: `Order #${orderData.orderNumber}`,
-      image: 'https://money-iota-woad.vercel.app/assets/hero_cafe.jpg',
-      order_id: payment.razorpayOrderId,
+      image: 'assets/coffee_mug.png',
+      order_id: rzpOrderId,
       prefill: {
         name: customerName,
         contact: customerPhone
@@ -1210,19 +1272,27 @@ function initCheckoutFlow() {
       },
       modal: {
         ondismiss: function() {
-          console.log('Razorpay modal closed. Showing direct UPI option.');
-          showRealUpiModal(orderData);
+          console.log('Razorpay checkout modal closed by user.');
+          showToast('Payment modal closed. You can complete payment anytime from your order tracker.', 'info');
+          const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+          setTimeout(() => {
+            window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
+          }, 1000);
         }
       },
+      // STEP 3: On Success, verify signature with backend
       handler: async function(response) {
         showToast('Verifying payment with banking gateway...', 'info');
 
         try {
-          const verifyRes = await fetch('/api/payments/verify', {
+          const verifyRes = await fetch('/api/verify-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               orderNumber: orderData.orderNumber,
+              order_id: response.razorpay_order_id,
+              payment_id: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
@@ -1236,23 +1306,27 @@ function initCheckoutFlow() {
               window.location.href = `/order.html?orderNumber=${orderData.orderNumber}&paid=true`;
             }, 600);
           } else {
-            showToast(verifyJson.error?.message || 'Payment verification issue. Staff will confirm at counter.', 'error');
-            showRealUpiModal(orderData);
+            showToast(verifyJson.error?.message || 'Payment verification failed. Staff will assist.', 'error');
+            const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+            setTimeout(() => {
+              window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
+            }, 1500);
           }
         } catch (err) {
           console.error('Signature verification error:', err);
           showToast('Payment received! Opening order tracker...', 'info');
-          window.location.href = `/order.html?orderNumber=${orderData.orderNumber}`;
+          const tokenQuery = orderData.orderToken ? `&token=${orderData.orderToken}` : '';
+          window.location.href = `/order.html?orderNumber=${orderData.orderNumber}${tokenQuery}`;
         }
       }
     };
 
     try {
       const rzpInstance = new Razorpay(options);
+      // Event: payment.failed
       rzpInstance.on('payment.failed', function(resp) {
         console.warn('Payment failed:', resp.error);
-        showToast(resp.error?.description || 'Payment was unsuccessful. You can try direct UPI.', 'error');
-        showRealUpiModal(orderData);
+        showToast(resp.error?.description || 'Payment was unsuccessful. Please retry or choose another method.', 'error');
       });
       rzpInstance.open();
     } catch (e) {

@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -21,10 +22,20 @@ if (databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsW
   const { Pool } = require('pg');
   pgPool = new Pool({
     connectionString: databaseUrl,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000
   });
   console.log('✅ Database: Connected via PostgreSQL');
 } else {
+  if (process.env.NODE_ENV === 'production' && (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)) {
+    if (process.env.ENFORCE_PRODUCTION_POSTGRES === 'true') {
+      throw new Error('CRITICAL CONFIGURATION ERROR: DATABASE_URL is required in production serverless environments when ENFORCE_PRODUCTION_POSTGRES=true.');
+    }
+    console.warn('⚠️ Serverless production runtime without DATABASE_URL: falling back to /tmp/ochre.db SQLite.');
+  }
+
   dbType = 'sqlite';
   const { DatabaseSync } = require('node:sqlite');
   
@@ -53,6 +64,7 @@ if (databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsW
   try {
     sqliteDb.exec('PRAGMA journal_mode = WAL;');
     sqliteDb.exec('PRAGMA foreign_keys = ON;');
+    sqliteDb.exec('PRAGMA busy_timeout = 5000;');
   } catch (e) {
     // Some tmp filesystems don't support WAL, ignore error
   }
@@ -202,7 +214,60 @@ async function initDb() {
   } else {
     await pgPool.query(schemaSql);
   }
+
+  // 3. Initialize sequential order counter if not present
+  try {
+    const seqRow = await get("SELECT current_val FROM order_sequences WHERE name = 'order_number'");
+    if (!seqRow) {
+      const recent = await all("SELECT order_number FROM orders WHERE order_number LIKE 'CAF-%'");
+      let maxNum = 1000;
+      for (const ord of recent) {
+        const match = (ord.order_number || '').match(/^CAF-(\d+)$/);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (val > maxNum) maxNum = val;
+        }
+      }
+      await run("INSERT INTO order_sequences (name, current_val) VALUES ('order_number', ?)", [maxNum]);
+    }
+  } catch (seqErr) {
+    console.warn('Sequence initialization note:', seqErr.message);
+  }
+
   console.log('✅ Database schema verified.');
+}
+
+/**
+ * Concurrency-Safe Sequential Order Number Generator
+ * Must be called within a database transaction to guarantee atomicity.
+ */
+async function getNextOrderNumber(tx) {
+  const runner = tx || { run, get };
+  await runner.run("UPDATE order_sequences SET current_val = current_val + 1 WHERE name = 'order_number'");
+  const seq = await runner.get("SELECT current_val FROM order_sequences WHERE name = 'order_number'");
+  if (!seq || !seq.current_val) {
+    throw new Error('Failed to generate atomic sequential order number.');
+  }
+  return `CAF-${seq.current_val}`;
+}
+
+/**
+ * Centralized Audit Logging Helper
+ * Writes security and financial operations to the audit_logs table.
+ */
+async function logAuditEvent({ actorId = 'system', actorRole = 'system', action, entityType, entityId = null, details = null, ipAddress = null }) {
+  try {
+    const id = 'aud_' + crypto.randomUUID();
+    const now = new Date().toISOString();
+    const detailsStr = typeof details === 'object' && details !== null ? JSON.stringify(details) : (details ? String(details) : null);
+    await run(
+      `INSERT INTO audit_logs (id, actor_id, actor_role, action, entity_type, entity_id, details, ip_address, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, actorId, actorRole, action, entityType, entityId, detailsStr, ipAddress, now]
+    );
+  } catch (err) {
+    console.error('Failed to write audit log event:', err.message);
+  }
 }
 
 module.exports = {
@@ -212,5 +277,8 @@ module.exports = {
   run,
   exec,
   transaction,
-  initDb
+  initDb,
+  getNextOrderNumber,
+  logAuditEvent
 };
+

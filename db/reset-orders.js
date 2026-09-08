@@ -32,6 +32,13 @@ async function resetOrders() {
     // 4. Delete orders
     const delOrders = await tx.run('DELETE FROM orders');
     console.log(`  - Deleted ${delOrders.changes} orders`);
+
+    // 5. Reset order sequence counter to 1000
+    try {
+      await tx.run("UPDATE order_sequences SET current_val = 1000 WHERE name = 'order_number'");
+    } catch (e) {
+      // Ignored if table not yet initialized
+    }
   });
 
   // Reset sqlite_sequence for orders if applicable

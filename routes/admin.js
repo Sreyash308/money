@@ -10,7 +10,16 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../db');
-const { requireAdmin, getJwtSecret } = require('../middleware/auth');
+const {
+  requireAdmin,
+  requireOwner,
+  requireRole,
+  getJwtSecret,
+  generateCsrfToken,
+  verifyCsrfToken,
+  JWT_ISSUER,
+  JWT_AUDIENCE
+} = require('../middleware/auth');
 const { notifyMenuChange } = require('./menu');
 const { notifyOrderChange } = require('./orders');
 
@@ -27,6 +36,16 @@ router.post('/login', async (req, res) => {
 
     const user = await db.get('SELECT * FROM admin_users WHERE email = ?', [email.trim().toLowerCase()]);
     if (!user) {
+      // Timing-safe dummy compare to mitigate user enumeration through response timing
+      bcrypt.compareSync(password, '$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUUabcdefghijk');
+      await db.logAuditEvent({
+        actorId: 'anonymous',
+        actorRole: 'unknown',
+        action: 'ADMIN_LOGIN_FAILED',
+        entityType: 'admin_user',
+        details: { email: email.trim().toLowerCase(), reason: 'USER_NOT_FOUND' },
+        ipAddress: req.ip
+      });
       return res.status(401).json({
         success: false,
         error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' }
@@ -35,6 +54,15 @@ router.post('/login', async (req, res) => {
 
     const match = bcrypt.compareSync(password, user.password_hash);
     if (!match) {
+      await db.logAuditEvent({
+        actorId: user.id,
+        actorRole: user.role,
+        action: 'ADMIN_LOGIN_FAILED',
+        entityType: 'admin_user',
+        entityId: user.id,
+        details: { email: user.email, reason: 'BAD_PASSWORD' },
+        ipAddress: req.ip
+      });
       return res.status(401).json({
         success: false,
         error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' }
@@ -44,21 +72,42 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, role: user.role },
       getJwtSecret(),
-      { expiresIn: '30d' }
+      { algorithm: 'HS256', expiresIn: '7d', issuer: JWT_ISSUER, audience: JWT_AUDIENCE }
     );
+
+    const csrfToken = generateCsrfToken();
 
     res.cookie('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 30 * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.cookie('ochre_csrf', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    await db.logAuditEvent({
+      actorId: user.id,
+      actorRole: user.role,
+      action: 'ADMIN_LOGIN',
+      entityType: 'admin_user',
+      entityId: user.id,
+      details: { email: user.email, role: user.role },
+      ipAddress: req.ip
     });
 
     res.json({
       success: true,
       data: {
         token,
+        csrfToken,
         user: {
           id: user.id,
           username: user.username,
@@ -78,6 +127,18 @@ router.post('/login', async (req, res) => {
 
 // GET /api/admin/me - Verify active admin session
 router.get('/me', requireAdmin, async (req, res) => {
+  let csrfToken = req.cookies ? req.cookies.ochre_csrf : null;
+  if (!csrfToken) {
+    csrfToken = generateCsrfToken();
+    res.cookie('ochre_csrf', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+  }
+
   const token = req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
     ? req.headers.authorization.split(' ')[1]
     : (req.cookies && req.cookies.admin_token ? req.cookies.admin_token : null);
@@ -86,16 +147,27 @@ router.get('/me', requireAdmin, async (req, res) => {
     success: true,
     data: {
       user: req.adminUser,
-      token
+      token,
+      csrfToken
     }
   });
 });
 
 // POST /api/admin/logout - Logout
-router.post('/logout', (req, res) => {
+router.post('/logout', requireAdmin, async (req, res) => {
+  await db.logAuditEvent({
+    actorId: req.adminUser ? req.adminUser.id : 'unknown',
+    actorRole: req.adminUser ? req.adminUser.role : 'unknown',
+    action: 'ADMIN_LOGOUT',
+    entityType: 'admin_user',
+    entityId: req.adminUser ? req.adminUser.id : null,
+    ipAddress: req.ip
+  });
   res.clearCookie('admin_token', { path: '/' });
+  res.clearCookie('ochre_csrf', { path: '/' });
   res.json({ success: true, message: 'Logged out successfully.' });
 });
+
 
 // GET /api/admin/orders - Live Orders list with filters
 router.get('/orders', requireAdmin, async (req, res) => {
@@ -181,7 +253,7 @@ router.get('/orders', requireAdmin, async (req, res) => {
 });
 
 // PATCH /api/admin/orders/:id/status - Update Order Status
-router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
+router.patch('/orders/:id/status', requireAdmin, verifyCsrfToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -194,11 +266,32 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
       });
     }
 
-    const order = await db.get('SELECT id, order_number, status, table_number, table_numbers, guest_count, order_type, payment_status FROM orders WHERE id = ?', [id]);
+    const order = await db.get('SELECT id, order_number, status, table_number, table_numbers, guest_count, order_type, payment_status, total FROM orders WHERE id = ?', [id]);
     if (!order) {
       return res.status(404).json({
         success: false,
         error: { code: 'ORDER_NOT_FOUND', message: 'Order not found.' }
+      });
+    }
+
+    // Explicit Order Status State Machine (Disallow backward/illegal transitions)
+    const legalTransitions = {
+      'RECEIVED': ['CONFIRMED', 'CANCELLED'],
+      'CONFIRMED': ['PREPARING', 'READY', 'CANCELLED'],
+      'PREPARING': ['READY', 'CANCELLED'],
+      'READY': ['COMPLETED', 'CANCELLED'],
+      'COMPLETED': [],
+      'CANCELLED': []
+    };
+
+    const allowedNext = legalTransitions[order.status] || [];
+    if (!allowedNext.includes(status) && order.status !== status) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ILLEGAL_TRANSITION',
+          message: `Cannot transition order ${order.order_number} from "${order.status}" to "${status}".`
+        }
       });
     }
 
@@ -210,6 +303,16 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
     } else {
       console.log(`📋 Order ${order.order_number} status updated to: ${status}`);
     }
+
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'ORDER_STATUS_CHANGED',
+      entityType: 'order',
+      entityId: id,
+      details: { orderNumber: order.order_number, from: order.status, to: status },
+      ipAddress: req.ip
+    });
 
     notifyOrderChange({
       action: 'STATUS_UPDATED',
@@ -239,15 +342,22 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/orders/:id/mark-paid - Mark Counter/UPI Payment as Paid & Accept Order
-router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
+router.post('/orders/:id/mark-paid', requireAdmin, verifyCsrfToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await db.get('SELECT id, order_number, payment_status, payment_method, status, table_number, table_numbers, guest_count, order_type FROM orders WHERE id = ?', [id]);
+    const order = await db.get('SELECT id, order_number, payment_status, payment_method, status, table_number, table_numbers, guest_count, order_type, total FROM orders WHERE id = ?', [id]);
 
     if (!order) {
       return res.status(404).json({
         success: false,
         error: { code: 'ORDER_NOT_FOUND', message: 'Order not found.' }
+      });
+    }
+
+    if (order.payment_status === 'PAID') {
+      return res.status(200).json({
+        success: true,
+        data: { id, paymentStatus: 'PAID', status: order.status, message: 'Payment already recorded as PAID.' }
       });
     }
 
@@ -274,6 +384,16 @@ router.post('/orders/:id/mark-paid', requireAdmin, async (req, res) => {
     });
 
     console.log(`💵 Payment (${order.payment_method}) marked PAID & accepted for order: ${order.order_number}`);
+
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'ORDER_PAYMENT_VERIFIED',
+      entityType: 'order',
+      entityId: id,
+      details: { orderNumber: order.order_number, method: order.payment_method, amount: order.total },
+      ipAddress: req.ip
+    });
 
     notifyOrderChange({
       action: 'PAID_AND_ACCEPTED',
@@ -326,8 +446,8 @@ router.get('/products', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/products - Add New Menu Item
-router.post('/products', requireAdmin, async (req, res) => {
+// POST /api/admin/products - Add New Menu Item (Owner only)
+router.post('/products', requireOwner, verifyCsrfToken, async (req, res) => {
   try {
     const { name, description, price, imageUrl, categoryId, isVeg, isCold, originTag, available } = req.body;
 
@@ -376,6 +496,16 @@ router.post('/products', requireAdmin, async (req, res) => {
 
     console.log(`🍵 Added new product: ${name} (₹${numPrice}, inStock: ${isAvail === 1})`);
 
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'PRODUCT_CREATED',
+      entityType: 'product',
+      entityId: id,
+      details: { name, price: numPrice },
+      ipAddress: req.ip
+    });
+
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'CREATE', productId: id, name, price: numPrice, available: isAvail === 1 });
 
@@ -392,8 +522,8 @@ router.post('/products', requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin/products/:id - Edit Product Details (Price, Name, Stock, etc.)
-router.put('/products/:id', requireAdmin, async (req, res) => {
+// PUT /api/admin/products/:id - Edit Product Details (Owner only)
+router.put('/products/:id', requireOwner, verifyCsrfToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, price, imageUrl, categoryId, isVeg, isCold, originTag, available } = req.body;
@@ -440,6 +570,16 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
 
     console.log(`✏️ Updated product: ${name || existing.name} (price: ${numPrice || existing.price}, stock: ${isAvail !== null ? isAvail : existing.available})`);
 
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'PRODUCT_UPDATED',
+      entityType: 'product',
+      entityId: id,
+      details: { name: name || existing.name, price: numPrice || existing.price },
+      ipAddress: req.ip
+    });
+
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'UPDATE', productId: id, name: name || existing.name, price: numPrice || existing.price, available: isAvail !== null ? isAvail === 1 : existing.available === 1 });
 
@@ -453,8 +593,8 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH /api/admin/products/:id/availability - Instant Product Availability / Sold Out Toggle
-router.patch('/products/:id/availability', requireAdmin, async (req, res) => {
+// PATCH /api/admin/products/:id/availability - Instant Product Availability / Sold Out Toggle (Owner only)
+router.patch('/products/:id/availability', requireOwner, verifyCsrfToken, async (req, res) => {
   try {
     const { id } = req.params;
     const product = await db.get('SELECT id, name, available FROM products WHERE id = ?', [id]);
@@ -474,6 +614,16 @@ router.patch('/products/:id/availability', requireAdmin, async (req, res) => {
     await db.run('UPDATE products SET available = ?, updated_at = ? WHERE id = ?', [newAvailability, now, id]);
 
     console.log(`⚡ Instant Availability Toggle: ${product.name} is now ${newAvailability === 1 ? 'AVAILABLE' : 'UNAVAILABLE'}`);
+
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'PRODUCT_AVAILABILITY_CHANGED',
+      entityType: 'product',
+      entityId: id,
+      details: { name: product.name, available: newAvailability === 1 },
+      ipAddress: req.ip
+    });
 
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'AVAILABILITY', productId: id, name: product.name, available: newAvailability === 1 });
@@ -495,12 +645,21 @@ router.patch('/products/:id/availability', requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/products/:id - Soft-delete product
-router.delete('/products/:id', requireAdmin, async (req, res) => {
+// DELETE /api/admin/products/:id - Soft-delete product (Owner only)
+router.delete('/products/:id', requireOwner, verifyCsrfToken, async (req, res) => {
   try {
     const { id } = req.params;
     const now = new Date().toISOString();
     await db.run('UPDATE products SET active = 0, updated_at = ? WHERE id = ?', [now, id]);
+
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'PRODUCT_DELETED',
+      entityType: 'product',
+      entityId: id,
+      ipAddress: req.ip
+    });
 
     // Broadcast instant real-time sync event
     notifyMenuChange({ action: 'DELETE', productId: id });
@@ -579,8 +738,8 @@ router.get('/tables', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/tables - Add a Table
-router.post('/tables', requireAdmin, async (req, res) => {
+// POST /api/admin/tables - Add a Table (Owner only)
+router.post('/tables', requireOwner, verifyCsrfToken, async (req, res) => {
   try {
     const { tableNumber, label, capacity } = req.body;
     const num = parseInt(tableNumber, 10);
@@ -609,6 +768,16 @@ router.post('/tables', requireAdmin, async (req, res) => {
       [id, num, label || `Table ${num < 10 ? '0' + num : num}`, cap, now, now]
     );
 
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'TABLE_CREATED',
+      entityType: 'table',
+      entityId: id,
+      details: { tableNumber: num, capacity: cap },
+      ipAddress: req.ip
+    });
+
     res.status(201).json({ success: true, message: `Table ${num} added.` });
   } catch (err) {
     console.error('Error adding table:', err);
@@ -619,8 +788,8 @@ router.post('/tables', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/tables/:tableNumber/vacate - Clean and vacate table, completing any active dine-in orders (including linked multi-tables)
-router.post('/tables/:tableNumber/vacate', requireAdmin, async (req, res) => {
+// POST /api/admin/tables/:tableNumber/vacate - Clean and vacate table (Admin only)
+router.post('/tables/:tableNumber/vacate', requireAdmin, verifyCsrfToken, async (req, res) => {
   try {
     const { tableNumber } = req.params;
     const num = parseInt(tableNumber, 10);
@@ -646,6 +815,17 @@ router.post('/tables/:tableNumber/vacate', requireAdmin, async (req, res) => {
 
     for (const ord of affectedOrders) {
       await db.run('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', ['COMPLETED', now, ord.id]);
+
+      await db.logAuditEvent({
+        actorId: req.adminUser.id,
+        actorRole: req.adminUser.role,
+        action: 'TABLE_VACATED',
+        entityType: 'order',
+        entityId: ord.id,
+        details: { tableNumber: num, orderNumber: ord.order_number },
+        ipAddress: req.ip
+      });
+
       notifyOrderChange({
         action: 'STATUS_UPDATED',
         orderId: ord.id,
@@ -673,9 +853,19 @@ router.post('/tables/:tableNumber/vacate', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/orders/reset - Purge order history and reset sequence (Admin only)
-router.post('/orders/reset', requireAdmin, async (req, res) => {
+// POST /api/admin/orders/reset - Purge order history and reset sequence (Owner only with environment guard)
+router.post('/orders/reset', requireOwner, verifyCsrfToken, async (req, res) => {
   try {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_ORDER_RESET !== 'true') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'RESET_FORBIDDEN',
+          message: 'Order history reset is disabled in production. Set ALLOW_PRODUCTION_ORDER_RESET=true to authorize.'
+        }
+      });
+    }
+
     const deletedCounts = {};
     await db.transaction(async (tx) => {
       const oi = await tx.run('DELETE FROM order_items');
@@ -686,6 +876,10 @@ router.post('/orders/reset', requireAdmin, async (req, res) => {
       deletedCounts.payments = p.changes;
       deletedCounts.webhook_events = w.changes;
       deletedCounts.orders = o.changes;
+
+      try {
+        await tx.run("UPDATE order_sequences SET current_val = 1000 WHERE name = 'order_number'");
+      } catch (seqErr) {}
     });
 
     if (db.dbType === 'sqlite') {
@@ -693,6 +887,15 @@ router.post('/orders/reset', requireAdmin, async (req, res) => {
         await db.run("DELETE FROM sqlite_sequence WHERE name IN ('orders', 'order_items', 'payments', 'webhook_events')");
       } catch (e) {}
     }
+
+    await db.logAuditEvent({
+      actorId: req.adminUser.id,
+      actorRole: req.adminUser.role,
+      action: 'ORDER_RESET',
+      entityType: 'orders',
+      details: deletedCounts,
+      ipAddress: req.ip
+    });
 
     notifyOrderChange({ action: 'RESET_ORDERS', timestamp: new Date().toISOString() });
 

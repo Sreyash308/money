@@ -117,6 +117,23 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  actor_id TEXT,
+  actor_role TEXT,
+  action TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT,
+  details TEXT,
+  ip_address TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS order_sequences (
+  name TEXT PRIMARY KEY,
+  current_val INTEGER NOT NULL
+);
+
 -- Optimized Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
@@ -124,9 +141,14 @@ CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_orders_idempotency ON orders(idempotency_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_customer_utr ON orders(customer_utr) WHERE customer_utr IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_available ON products(available);
 CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
 CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_provider_order ON payments(provider_order_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+

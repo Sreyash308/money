@@ -16,6 +16,15 @@ module.exports = async (req, res) => {
       await seed();
       isInitialized = true;
     } catch (e) {
+      if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL && process.env.ENFORCE_PRODUCTION_POSTGRES === 'true') {
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'DATABASE_CONFIGURATION_REQUIRED',
+            message: 'Production deployment requires a valid DATABASE_URL (PostgreSQL). Ephemeral storage is disabled.'
+          }
+        });
+      }
       console.warn('Serverless DB cold start init check:', e.message);
     }
   }

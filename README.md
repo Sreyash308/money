@@ -100,48 +100,144 @@ The server will automatically initialize the database schema and seed all initia
 
 ### 3. Run Automated Test Suite
 ```bash
+# Run baseline E2E test suite (16 tests)
 npm test
-```
-Executes all 16 automated end-to-end integration and security test cases.
 
----
+# Run security regression suite (25 tests)
+npm run test:security
 
-## Environment Configuration (`.env`)
+# Run production smoke audit (7 multi-phase tests)
+npm run test:smoke
 
-See `.env.example` for all configurable variables:
-
-```env
-PORT=8000
-NODE_ENV=development
-DATABASE_URL=
-
-# Razorpay Credentials (from https://dashboard.razorpay.com)
-RAZORPAY_KEY_ID=rzp_test_YourKeyIdHere
-RAZORPAY_KEY_SECRET=YourKeySecretHere
-RAZORPAY_WEBHOOK_SECRET=YourWebhookSecretHere
-
-# Destination UPI ID for Merchant Settlements
-UPI_MERCHANT_VPA=9182916879@ybl
-
-# Admin Authentication
-ADMIN_JWT_SECRET=your-secure-random-jwt-secret-here
-ADMIN_EMAIL=owner@ochrecoffee.com
-ADMIN_PASSWORD=YourSecurePasswordHere
+# Run all test suites
+npm run test:all
 ```
 
 ---
 
-## Vercel Deployment Guide
+## 🔒 Security Architecture & Production Hardening
 
-1. Push code to your GitHub repository.
-2. In your [Vercel Dashboard](https://vercel.com), import the repository.
-3. Configure your production environment variables:
-   - `DATABASE_URL`: PostgreSQL connection string (Supabase / Neon / Vercel Postgres).
-   - `RAZORPAY_KEY_ID`: Live Razorpay Key ID (`rzp_live_...`).
-   - `RAZORPAY_KEY_SECRET`: Live Razorpay Key Secret.
-   - `RAZORPAY_WEBHOOK_SECRET`: Secret string configured in Razorpay Webhooks.
-   - `UPI_MERCHANT_VPA`: `9182916879@ybl`.
-   - `ADMIN_JWT_SECRET`: Random 32+ character secret string.
-   - `ADMIN_EMAIL`: Your admin email.
-   - `ADMIN_PASSWORD`: Your chosen admin password.
-4. Deploy. Vercel will route all requests via `vercel.json`.
+### 1. Zero-Trust Server Authority
+- **Pricing**: All prices, subtotals, taxes, and totals submitted by the client are strictly ignored. The server computes all financial snapshots directly from active database records.
+- **Table Occupancy**: Atomic validation occurs inside an ACID transaction (`BEGIN TRANSACTION`) immediately before order insertion, preventing concurrent overbooking races.
+- **Sequential Order Numbers**: Order numbering uses an atomic sequence table (`order_sequences`) rather than an unsafe `MAX(order_number) + 1` query.
+- **Idempotency**: Atomic insert guarded by database unique constraint (`idempotency_key`), returning the original order on retry without duplicate payments or line items.
+
+### 2. Authentication & Admin Session Security
+- **JWT Pinning**: Strictly pinned to `HS256`, with validated `issuer` (`ochre-coffee-roasters`) and `audience` (`ochre-admin`). Tokens with unexpected algorithms (e.g. `none`) are rejected.
+- **HTTP-Only Cookies**: Admin session token is stored in a secure, HTTP-only cookie (`admin_token`) with `sameSite: lax`, `path: /`, and `secure: true` in production. Sensitive JWT tokens are NEVER stored in browser `localStorage`.
+- **Double-Submit CSRF**: State-changing endpoints (`POST`, `PUT`, `PATCH`, `DELETE` under `/api/admin/*`) are protected by matching `x-csrf-token` header against the `ochre_csrf` cookie, with origin/host verification.
+- **Brute-Force Rate Limiting**: `POST /api/admin/login` is rate-limited to 10 attempts per 15 minutes. High-risk public endpoints (`/api/orders`, `/api/payments/submit-utr`) are throttled.
+
+### 3. Role-Based Access Control (RBAC)
+The platform enforces explicit server-side RBAC:
+
+| Action / Resource | CASHIER | OWNER | Server Middleware Guard |
+| :--- | :---: | :---: | :--- |
+| View Orders Queue | ✅ | ✅ | `requireAdmin` |
+| Mark Counter/UPI Paid | ✅ | ✅ | `requireAdmin` |
+| Advance Order Status | ✅ | ✅ | `requireAdmin` |
+| View Table Occupancy | ✅ | ✅ | `requireAdmin` |
+| Toggle Product In-Stock / Sold-Out | ❌ | ✅ | `requireOwner` |
+| Edit Product / Prices | ❌ | ✅ | `requireOwner` |
+| Create New Product | ❌ | ✅ | `requireOwner` |
+| Delete Product | ❌ | ✅ | `requireOwner` |
+| Create Restaurant Table | ❌ | ✅ | `requireOwner` |
+| Vacate Table (Manual Override) | ❌ | ✅ | `requireOwner` |
+| Purge / Reset Order History | ❌ | ✅ | `requireOwner` + `ALLOW_PRODUCTION_ORDER_RESET` |
+
+### 4. Direct UPI & Payment State Machine
+- **Honest Verification**: Direct UPI payments start strictly in `PAYMENT_PENDING`. Customer UTR submission records the reference for staff reconciliation without claiming automated verification.
+- **Duplicate UTR Prevention**: Reusing a UTR across multiple orders is rejected with `DUPLICATE_UTR` (400) via indexed database checks.
+- **Razorpay HMAC Verification**: Webhook and checkout signatures use `crypto.timingSafeEqual` with buffer length validation. Webhook processing is idempotent via `webhook_events` deduplication.
+- **Order State Machine**: Strict sequential legal progression (`RECEIVED` &rarr; `CONFIRMED` &rarr; `PREPARING` &rarr; `READY` &rarr; `COMPLETED`). Backward transitions (e.g., `READY` &rarr; `RECEIVED`) are rejected.
+
+### 5. Customer Privacy & Order Enumeration Protection
+- Accessing `GET /api/orders/:orderNumber` without the authentic `x-order-token` (or admin bearer token) returns a masked response (`customerName: "A***a S***a"`, `customerPhone: null`, `customerUtr: null`, `items: []`, `payment: null`, `isMasked: true`).
+- Full receipt details and payment QR are restricted to callers possessing the cryptographically random `order_token`.
+
+### 6. Audit Trail Logging
+All critical actions (`ADMIN_LOGIN`, `ADMIN_LOGIN_FAILED`, `ADMIN_LOGOUT`, `ORDER_STATUS_CHANGED`, `ORDER_PAYMENT_VERIFIED`, `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_AVAILABILITY_CHANGED`, `PRODUCT_DELETED`, `TABLE_CREATED`, `TABLE_VACATED`, `ORDER_RESET`, `PAYMENT_WEBHOOK_PROCESSED`, `UTR_SUBMITTED`) are logged to the `audit_logs` table with actor, role, entity, request IP, and timestamp.
+
+---
+
+## 🗄️ Database Architecture & Migrations
+
+### Dual-Engine Compatibility (SQLite & PostgreSQL)
+- **Development**: Native SQLite (`data/ochre.db`) with WAL mode, foreign keys enabled, and a 5000ms busy timeout.
+- **Production (Vercel / Cloud)**: PostgreSQL via `pg.Pool` with connection limits, statement timeouts, and SSL (`rejectUnauthorized: false` for managed providers like Supabase/Neon).
+- **Ephemeral Storage Guard**: In production on serverless platforms, the database adapter explicitly fails startup if `DATABASE_URL` is missing, preventing silent fallback to ephemeral `/tmp/ochre.db`.
+
+### Database Schema Tables
+1. `products`: Catalog items, integer prices in INR, category foreign keys, in-stock availability flag.
+2. `categories`: Menu taxonomies and display ordering.
+3. `restaurant_tables`: Dine-in table capacities, labels, and active flags.
+4. `orders`: Authoritative order header, totals, payment and lifecycle statuses, encrypted/unique idempotency keys, order tokens, and customer UTRs.
+5. `order_items`: Historical snapshots of product names and prices at purchase time.
+6. `order_sequences`: Concurrency-safe atomic counter for sequential `CAF-XXXX` order numbers.
+7. `payments`: Payment records, provider references, and audit timestamps.
+8. `webhook_events`: Idempotent log of processed payment provider webhooks.
+9. `admin_users`: Staff accounts with bcrypt password hashes and roles (`OWNER`, `CASHIER`).
+10. `audit_logs`: Append-only security audit trail.
+11. `settings`: Store configuration parameters (e.g. `tax_rate_percent`).
+
+---
+
+## 📦 Backup & Recovery Strategy
+
+### PostgreSQL (Production)
+1. **Automated Daily Backups**: Enable automated daily snapshots in your managed database dashboard (Supabase / Neon / AWS RDS).
+2. **Manual Logical Backup**:
+   ```bash
+   pg_dump "$DATABASE_URL" --format=custom --file=ochre_backup_$(date +%Y%m%d).dump
+   ```
+3. **Restoration Procedure**:
+   ```bash
+   pg_restore --clean --if-exists -d "$DATABASE_URL" ochre_backup_20260908.dump
+   ```
+
+### SQLite (Development)
+1. **Backup SQLite DB**:
+   ```bash
+   sqlite3 data/ochre.db ".backup 'data/ochre_backup_$(date +%Y%m%d).db'"
+   ```
+
+---
+
+## 🌐 Real-Time Synchronization & Horizontal Scaling
+
+- **Development / Single Instance**: Real-time SSE updates are broadcast via an in-memory client connection set with heartbeat ping and automatic disconnect cleanup.
+- **Serverless / Multi-Instance Production**: Because serverless functions (like Vercel) have ephemeral execution contexts and cannot maintain persistent SSE connection state across lambdas, multi-instance production deployments require a Redis Pub/Sub event bus (`REDIS_URL`) or an external managed WebSocket/SSE service (e.g., Pusher, Ably, or AWS API Gateway WebSockets). Client browsers gracefully fall back to adaptive polling when SSE is unavailable.
+
+---
+
+## 🚀 Production Deployment Checklist
+
+Before deploying to production (e.g. Vercel, Railway, Render, AWS):
+
+1. **Provision PostgreSQL Database**: Obtain a production connection URI (Supabase, Neon, or Railway PostgreSQL).
+2. **Configure Environment Variables**:
+   ```env
+   NODE_ENV=production
+   PORT=8000
+   DATABASE_URL=postgres://user:password@host:port/database?sslmode=require
+   APP_ORIGIN=https://your-production-domain.com
+   ALLOWED_ORIGINS=https://your-production-domain.com
+   ADMIN_JWT_SECRET=<32+ random characters generated via: node -e "console.log(crypto.randomBytes(32).toString('hex'))">
+   ADMIN_EMAIL=owner@your-cafe.com
+   ADMIN_PASSWORD=<Strong production password>
+   CASHIER_EMAIL=cashier@your-cafe.com
+   CASHIER_PASSWORD=<Strong cashier password>
+   UPI_MERCHANT_VPA=9182916879@ybl
+   UPI_MERCHANT_NAME=Ochre Coffee Roasters
+   RAZORPAY_KEY_ID=rzp_live_...
+   RAZORPAY_KEY_SECRET=...
+   RAZORPAY_WEBHOOK_SECRET=...
+   ALLOW_PRODUCTION_ORDER_RESET=false
+   ```
+3. **Run Database Seeding**: Run `npm run seed` once against the production database to create initial products and staff accounts.
+4. **Configure Razorpay Webhook**: In Razorpay Dashboard &rarr; Settings &rarr; Webhooks, point to `https://your-domain.com/api/payments/razorpay/webhook` with secret matching `RAZORPAY_WEBHOOK_SECRET`.
+5. **Verify Health Endpoints**:
+   - `GET /api/health` &rarr; `{ "status": "ok" }`
+   - `GET /api/health/ready` &rarr; `{ "status": "ready", "database": "connected" }`
+

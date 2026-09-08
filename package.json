@@ -8,7 +8,11 @@
     "start": "node server.js",
     "seed": "node db/seed.js",
     "reset:orders": "node db/reset-orders.js",
-    "test": "node tests/test-runner.js"
+    "test": "node tests/test-runner.js",
+    "test:razorpay": "node tests/test-razorpay-standard.js",
+    "test:security": "node tests/test-security.js",
+    "test:smoke": "node tests/smoke-audit.js",
+    "test:all": "node tests/test-runner.js && node tests/test-razorpay-standard.js && node tests/smoke-audit.js && node tests/test-security.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -16,10 +20,15 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.5"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   },
   "keywords": [
     "coffee",

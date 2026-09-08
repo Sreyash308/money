@@ -17,7 +17,7 @@
   <script>
     // Immediate auth state check before CSS/DOM render to eliminate login flash
     try {
-      if (localStorage.getItem('ochre_admin_token')) {
+      if (document.cookie.includes('ochre_csrf') || document.cookie.includes('admin_token')) {
         document.documentElement.classList.add('is-authenticated');
       }
     } catch (e) {}
@@ -640,18 +640,42 @@
   </audio>
 
   <script>
-    let authToken = localStorage.getItem('ochre_admin_token') || null;
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function getCsrfToken() {
+      const match = document.cookie.match(/(?:^|;\s*)ochre_csrf=([^;]+)/);
+      return match ? decodeURIComponent(match[1]) : (window.__ochre_csrf || null);
+    }
+
+    let authToken = null;
     let currentUser = null;
     let currentFilterStatus = 'ALL';
     let prevPendingCount = 0;
     let isPollingStarted = false;
 
-    // Unified authenticated fetch with credentials & Bearer JWT token
+    // Unified authenticated fetch with credentials, HTTP-only cookie, and CSRF token for mutations
     async function adminFetch(url, options = {}) {
       const headers = { ...(options.headers || {}) };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
+
+      const method = (options.method || 'GET').toUpperCase();
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const csrfToken = getCsrfToken();
+        if (csrfToken) {
+          headers['x-csrf-token'] = csrfToken;
+        }
+      }
+
       const fetchOpts = {
         ...options,
         credentials: 'include',
@@ -666,7 +690,6 @@
     }
 
     function handleSessionExpired() {
-      localStorage.removeItem('ochre_admin_token');
       authToken = null;
       currentUser = null;
       document.documentElement.classList.remove('is-authenticated');
@@ -783,7 +806,9 @@
           if (json.success && json.data) {
             authToken = json.data.token;
             currentUser = json.data.user;
-            localStorage.setItem('ochre_admin_token', authToken);
+            if (json.data.csrfToken) {
+              window.__ochre_csrf = json.data.csrfToken;
+            }
             document.documentElement.classList.add('is-authenticated');
             loginOverlay.style.display = 'none';
             updateUserDisplay(currentUser);
@@ -802,11 +827,15 @@
       });
 
       logoutBtn.addEventListener('click', async () => {
-        localStorage.removeItem('ochre_admin_token');
         authToken = null;
         currentUser = null;
         try {
-          await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+          const csrfToken = getCsrfToken();
+          await fetch('/api/admin/logout', {
+            method: 'POST',
+            credentials: 'include',
+            headers: csrfToken ? { 'x-csrf-token': csrfToken } : {}
+          });
         } catch (e) {}
         document.documentElement.classList.remove('is-authenticated');
         window.location.reload();
@@ -831,7 +860,9 @@
             currentUser = json.data.user;
             if (json.data.token && !authToken) {
               authToken = json.data.token;
-              localStorage.setItem('ochre_admin_token', authToken);
+            }
+            if (json.data.csrfToken) {
+              window.__ochre_csrf = json.data.csrfToken;
             }
             document.documentElement.classList.add('is-authenticated');
             if (loginOverlay) loginOverlay.style.display = 'none';
@@ -844,19 +875,10 @@
           return;
         }
       } catch (e) {
-        console.warn('Session check network note:', e);
-        // On network error or cold start, preserve auth if token exists in localStorage
-        if (authToken) {
-          document.documentElement.classList.add('is-authenticated');
-          if (loginOverlay) loginOverlay.style.display = 'none';
-          startAdminPolling();
-          return;
-        }
+        console.warn('Session check note:', e);
       }
 
-      if (!authToken) {
-        handleSessionExpired();
-      }
+      handleSessionExpired();
     }
 
     function startAdminPolling() {
@@ -1055,7 +1077,7 @@
 
             <div class="admin-order-body">
               <div class="order-customer-info">
-                <strong>Guest:</strong> ${ord.customer_name} &bull; <a href="tel:${ord.customer_phone}" style="color: var(--color-accent-ochre);">${ord.customer_phone}</a>
+                <strong>Guest:</strong> ${escapeHtml(ord.customer_name)} &bull; <a href="tel:${escapeHtml(ord.customer_phone)}" style="color: var(--color-accent-ochre);">${escapeHtml(ord.customer_phone)}</a>
                 <div style="font-size: 0.76rem; color: var(--admin-text-muted); margin-top: 2px;">
                   ${new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
@@ -1063,13 +1085,13 @@
 
               ${ord.notes ? `
                 <div style="background: rgba(242, 153, 74, 0.1); border-left: 3px solid #f2994a; padding: 0.4rem 0.6rem; font-size: 0.8rem; margin-bottom: 0.8rem; color: #f2994a;">
-                  <strong>Note:</strong> ${ord.notes}
+                  <strong>Note:</strong> ${escapeHtml(ord.notes)}
                 </div>
               ` : ''}
 
               ${ord.customer_utr ? `
                 <div style="background: rgba(46, 125, 50, 0.15); border: 1px solid #2e7d32; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.8rem; font-size: 0.8rem; color: #a5d6a7;">
-                  <strong>Guest Submitted UPI UTR:</strong> <code style="color: #fff; font-size: 0.92rem; font-weight: 800;">${ord.customer_utr}</code>
+                  <strong>Guest Submitted UPI UTR:</strong> <code style="color: #fff; font-size: 0.92rem; font-weight: 800;">${escapeHtml(ord.customer_utr)}</code>
                   <div style="font-size: 0.72rem; color: var(--admin-text-muted); margin-top: 2px;">Match with incoming alerts to 9182916879@ybl</div>
                 </div>
               ` : ''}
@@ -1077,7 +1099,7 @@
               <table class="order-items-table">
                 ${(ord.items || []).map(i => `
                   <tr>
-                    <td>${i.quantity}× ${i.name}</td>
+                    <td>${i.quantity}× ${escapeHtml(i.name)}</td>
                     <td style="text-align: right; font-weight: 700;">₹${i.subtotal}</td>
                   </tr>
                 `).join('')}
@@ -1244,10 +1266,10 @@
       tbody.innerHTML = products.map(p => `
         <tr style="${!p.available ? 'opacity: 0.85; background: rgba(235, 87, 87, 0.04);' : ''}">
           <td>
-            <strong>${p.name}</strong>
-            <div style="font-size: 0.78rem; color: var(--admin-text-muted);">${p.description || ''}</div>
+            <strong>${escapeHtml(p.name)}</strong>
+            <div style="font-size: 0.78rem; color: var(--admin-text-muted);">${escapeHtml(p.description || '')}</div>
           </td>
-          <td>${p.category_name || p.category_id}</td>
+          <td>${escapeHtml(p.category_name || p.category_id)}</td>
           <td><strong style="color: #fff; font-size: 0.98rem;">₹${p.price}</strong></td>
           <td>
             ${p.is_veg ? '<span class="pill-tag tag-veg">Veg</span>' : ''}

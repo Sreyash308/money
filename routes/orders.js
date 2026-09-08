@@ -6,20 +6,35 @@
 
 const express = require('express');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../db');
 const { directUPI, counter, razorpay } = require('../lib/payments');
+const { getJwtSecret, JWT_ISSUER, JWT_AUDIENCE } = require('../middleware/auth');
 
 let currentOrderVersion = Date.now();
 const sseOrderClients = new Set();
 
 function notifyOrderChange(changeDetails = {}) {
   currentOrderVersion = Date.now();
+  // Strip customer PII, customer phone, notes, and payment secrets before broadcasting
+  const safeChange = {
+    action: changeDetails.action || 'UPDATE',
+    orderNumber: changeDetails.orderNumber,
+    status: changeDetails.status,
+    tableNumber: changeDetails.tableNumber,
+    tableNumbers: changeDetails.tableNumbers,
+    tableLabel: changeDetails.tableLabel,
+    isTableVacant: changeDetails.isTableVacant,
+    paymentStatus: changeDetails.paymentStatus,
+    timestamp: new Date().toISOString()
+  };
+
   const payload = JSON.stringify({
     type: 'ORDER_UPDATE',
     version: currentOrderVersion,
-    timestamp: new Date().toISOString(),
-    change: changeDetails
+    timestamp: safeChange.timestamp,
+    change: safeChange
   });
 
   for (const client of sseOrderClients) {
@@ -30,6 +45,7 @@ function notifyOrderChange(changeDetails = {}) {
     }
   }
 }
+
 
 function getStatusLabel(status, paymentStatus) {
   switch (status) {
@@ -266,9 +282,9 @@ router.post('/', async (req, res) => {
     let validTableNumbersStr = null;
     let validGuestCount = guestCount ? parseInt(guestCount, 10) : 2;
     if (isNaN(validGuestCount) || validGuestCount < 1) validGuestCount = 2;
+    let inputTables = [];
 
     if (orderType === 'DINE_IN') {
-      let inputTables = [];
       if (Array.isArray(tableNumbers) && tableNumbers.length > 0) {
         inputTables = tableNumbers.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
       } else if (typeof tableNumbers === 'string' && tableNumbers.trim()) {
@@ -350,10 +366,10 @@ router.post('/', async (req, res) => {
 
     // 3. Validate Payment Method
     const normalizedMethod = (paymentMethod || 'UPI').toUpperCase();
-    if (normalizedMethod !== 'COUNTER' && normalizedMethod !== 'UPI') {
+    if (normalizedMethod !== 'COUNTER' && normalizedMethod !== 'UPI' && normalizedMethod !== 'RAZORPAY') {
       return res.status(400).json({
         success: false,
-        error: { code: 'INVALID_PAYMENT_METHOD', message: 'Payment method must be Pay at Counter or Online UPI.' }
+        error: { code: 'INVALID_PAYMENT_METHOD', message: 'Payment method must be Pay at Counter, Online UPI, or Razorpay.' }
       });
     }
 
@@ -365,16 +381,28 @@ router.post('/', async (req, res) => {
       });
     }
 
-    let calculatedTotal = 0;
-    const validatedItems = [];
-
+    // Aggregate duplicate item IDs in cart payload
+    const itemMap = new Map();
     for (const itm of items) {
       const productId = itm.productId || itm.id;
       const qty = parseInt(itm.quantity, 10);
-      if (!productId || isNaN(qty) || qty < 1 || qty > 20) {
+      if (!productId || isNaN(qty) || qty < 1) {
         return res.status(400).json({
           success: false,
-          error: { code: 'INVALID_QUANTITY', message: 'Quantity must be between 1 and 20.' }
+          error: { code: 'INVALID_QUANTITY', message: 'Item quantity must be a positive integer.' }
+        });
+      }
+      itemMap.set(productId, (itemMap.get(productId) || 0) + qty);
+    }
+
+    let calculatedTotal = 0;
+    const validatedItems = [];
+
+    for (const [productId, qty] of itemMap.entries()) {
+      if (qty > 20) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_QUANTITY', message: 'Maximum quantity per item is 20.' }
         });
       }
 
@@ -413,19 +441,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 5. Generate Sequential Order Number Dynamically from Database
-    const recentOrders = await db.all(
-      "SELECT order_number FROM orders WHERE order_number LIKE 'CAF-%' ORDER BY created_at DESC LIMIT 50"
-    );
-    let maxNum = 1000;
-    for (const ord of recentOrders) {
-      const match = (ord.order_number || '').match(/^CAF-(\d+)$/);
-      if (match) {
-        const val = parseInt(match[1], 10);
-        if (val > maxNum) maxNum = val;
-      }
-    }
-    const orderNumber = `CAF-${maxNum + 1}`;
     const orderId = 'ord_' + crypto.randomUUID();
     const orderToken = crypto.randomBytes(24).toString('hex');
     const now = new Date().toISOString();
@@ -438,8 +453,41 @@ router.post('/', async (req, res) => {
     const taxAmount = Math.round(calculatedTotal * (taxRate / 100));
     const finalTotal = calculatedTotal + taxAmount;
 
-    // 6. Insert Order & Order Items within a Transaction
+    let orderNumber = null;
+
+    // 5. Insert Order & Order Items within an Atomic Transaction
     await db.transaction(async (tx) => {
+      // Atomic Table Occupancy Verification (Prevents race conditions / double-booking)
+      if (orderType === 'DINE_IN') {
+        const activeOrders = await tx.all(
+          `SELECT id, order_number, table_number, table_numbers
+           FROM orders
+           WHERE order_type = 'DINE_IN'
+             AND status IN ('RECEIVED', 'CONFIRMED', 'PREPARING', 'READY')`
+        );
+
+        for (const tNum of inputTables) {
+          for (const ord of activeOrders) {
+            const associated = [];
+            if (ord.table_number) associated.push(parseInt(ord.table_number, 10));
+            if (ord.table_numbers) {
+              String(ord.table_numbers).split(',').forEach(s => {
+                const n = parseInt(s.trim(), 10);
+                if (!isNaN(n)) associated.push(n);
+              });
+            }
+            if (associated.includes(tNum)) {
+              const tableErr = new Error(`Table #${tNum} is currently occupied by active order ${ord.order_number}. Please choose an open table.`);
+              tableErr.code = 'TABLE_OCCUPIED';
+              throw tableErr;
+            }
+          }
+        }
+      }
+
+      // Concurrency-safe atomic order number generation
+      orderNumber = await db.getNextOrderNumber(tx);
+
       await tx.run(
         `INSERT INTO orders (
           id, order_number, customer_name, customer_phone, order_type,
@@ -496,7 +544,7 @@ router.post('/', async (req, res) => {
         [
           paymentId,
           orderId,
-          normalizedMethod === 'UPI' ? 'DIRECT_UPI' : 'COUNTER',
+          normalizedMethod === 'COUNTER' ? 'COUNTER' : (normalizedMethod === 'RAZORPAY' ? 'RAZORPAY' : 'DIRECT_UPI'),
           calculatedTotal,
           normalizedMethod,
           now,
@@ -507,9 +555,56 @@ router.post('/', async (req, res) => {
 
     console.log(`🛎️  New Genuine Order Created: ${orderNumber} (${orderType} · ₹${calculatedTotal} · ${normalizedMethod})`);
 
-    // 7. Generate Payment Payload
+    // 6. Generate Payment Payload
     let paymentPayload = null;
-    if (normalizedMethod === 'UPI') {
+    if (normalizedMethod === 'RAZORPAY') {
+      const directUpiPayload = await directUPI.createPaymentRequest({
+        id: orderId,
+        order_number: orderNumber,
+        total: calculatedTotal
+      });
+
+      if (razorpay.isConfigured()) {
+        try {
+          const rzpPayload = await razorpay.createPaymentRequest({
+            id: orderId,
+            order_number: orderNumber,
+            total: calculatedTotal
+          });
+
+          await db.run(
+            'UPDATE orders SET razorpay_order_id = ? WHERE id = ?',
+            [rzpPayload.razorpayOrderId, orderId]
+          );
+
+          paymentPayload = {
+            ...rzpPayload,
+            orderId,
+            orderNumber,
+            total: calculatedTotal
+          };
+        } catch (rzpErr) {
+          console.warn('Razorpay order creation error:', rzpErr.message);
+          paymentPayload = {
+            provider: 'RAZORPAY',
+            keyId: process.env.RAZORPAY_KEY_ID,
+            amount: Math.round(calculatedTotal * 100),
+            currency: 'INR',
+            destinationVpa: directUPI.vpa,
+            directUpi: directUpiPayload
+          };
+        }
+      } else {
+        paymentPayload = {
+          provider: 'RAZORPAY',
+          keyId: process.env.RAZORPAY_KEY_ID,
+          amount: Math.round(calculatedTotal * 100),
+          currency: 'INR',
+          destinationVpa: directUPI.vpa,
+          directUpi: directUpiPayload
+        };
+      }
+    } else if (normalizedMethod === 'UPI') {
       const directUpiPayload = await directUPI.createPaymentRequest({
         id: orderId,
         order_number: orderNumber,
@@ -603,6 +698,43 @@ router.post('/', async (req, res) => {
       }
     });
   } catch (err) {
+    if (err.code === 'TABLE_OCCUPIED') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'TABLE_OCCUPIED', message: err.message }
+      });
+    }
+
+    // Handle duplicate idempotency key race
+    const cleanIdempotencyKey = req.body && req.body.idempotencyKey && typeof req.body.idempotencyKey === 'string' ? req.body.idempotencyKey.trim() : null;
+    if (cleanIdempotencyKey && (err.message?.includes('UNIQUE constraint failed') || err.message?.includes('idempotency_key') || err.code === '23505')) {
+      try {
+        const existingOrder = await db.get('SELECT * FROM orders WHERE idempotency_key = ?', [cleanIdempotencyKey]);
+        if (existingOrder) {
+          const orderItems = await db.all(
+            'SELECT product_name_snapshot AS name, unit_price_snapshot AS unitPrice, quantity, subtotal FROM order_items WHERE order_id = ?',
+            [existingOrder.id]
+          );
+          return res.status(200).json({
+            success: true,
+            data: {
+              orderId: existingOrder.id,
+              orderNumber: existingOrder.order_number,
+              customerName: existingOrder.customer_name,
+              orderType: existingOrder.order_type,
+              tableNumber: existingOrder.table_number,
+              paymentMethod: existingOrder.payment_method,
+              paymentStatus: existingOrder.payment_status,
+              status: existingOrder.status,
+              total: existingOrder.total,
+              items: orderItems,
+              isIdempotentReplay: true
+            }
+          });
+        }
+      } catch (_) {}
+    }
+
     console.error('Error creating order:', err);
     res.status(500).json({
       success: false,
@@ -625,7 +757,7 @@ router.get('/history', async (req, res) => {
         .split(',')
         .map(n => n.trim().toUpperCase())
         .filter(n => /^CAF-\d+$/.test(n))
-        .slice(0, 20);
+        .slice(0, 10);
 
       if (numbersList.length > 0) {
         orders = await db.all(
@@ -634,7 +766,7 @@ router.get('/history', async (req, res) => {
            FROM orders
            WHERE order_number IN (${numbersList.map(() => '?').join(',')})
            ORDER BY created_at DESC, order_number DESC
-           LIMIT 20`,
+           LIMIT 10`,
           numbersList
         );
       }
@@ -675,12 +807,32 @@ router.get('/:orderNumber', async (req, res) => {
       });
     }
 
+    let isAdmin = false;
+    try {
+      let adminToken = null;
+      if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        adminToken = req.headers.authorization.split(' ')[1];
+      } else if (req.cookies && req.cookies.admin_token) {
+        adminToken = req.cookies.admin_token;
+      }
+      if (adminToken) {
+        jwt.verify(adminToken, getJwtSecret(), {
+          algorithms: ['HS256'],
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE
+        });
+        isAdmin = true;
+      }
+    } catch (e) {
+      isAdmin = false;
+    }
+
     const isAuthorized = Boolean(
       (order.order_token && clientToken && order.order_token === clientToken) ||
-      req.headers.authorization
+      isAdmin
     );
 
-    // Privacy Masking: Protect customer identity from unauthorized enumeration
+    // Privacy Masking: Protect customer identity and receipts from unauthorized enumeration
     let safeCustomerName = 'Guest';
     if (isAuthorized && order.customer_name) {
       safeCustomerName = order.customer_name;
@@ -700,17 +852,20 @@ router.get('/:orderNumber', async (req, res) => {
       tableLabel = `Table ${order.table_number < 10 ? '0' + order.table_number : order.table_number}`;
     }
 
-    const items = await db.all(
-      `SELECT product_name_snapshot AS name, unit_price_snapshot AS unitPrice,
-              quantity, subtotal
-       FROM order_items
-       WHERE order_id = ?`,
-      [order.id]
-    );
+    let items = [];
+    if (isAuthorized) {
+      items = await db.all(
+        `SELECT product_name_snapshot AS name, unit_price_snapshot AS unitPrice,
+                quantity, subtotal
+         FROM order_items
+         WHERE order_id = ?`,
+        [order.id]
+      );
+    }
 
-    // Attach UPI / Razorpay payment instructions & QR if pending
+    // Attach UPI / Razorpay payment instructions & QR only if authorized and pending
     let paymentDetails = null;
-    if (order.payment_method === 'UPI') {
+    if (isAuthorized && order.payment_method === 'UPI') {
       const directUpiPayload = await directUPI.createPaymentRequest(order);
       paymentDetails = { ...directUpiPayload };
 
@@ -751,14 +906,15 @@ router.get('/:orderNumber', async (req, res) => {
         isTableVacant: order.status === 'COMPLETED' || order.status === 'CANCELLED',
         paymentStatus: order.payment_status,
         paymentMethod: order.payment_method,
-        subtotal: order.subtotal,
-        tax: order.tax || 0,
+        subtotal: isAuthorized ? order.subtotal : null,
+        tax: isAuthorized ? (order.tax || 0) : null,
         total: order.total,
         notes: isAuthorized ? order.notes : null,
-        customerUtr: order.customer_utr,
+        customerUtr: isAuthorized ? order.customer_utr : null,
         createdAt: order.created_at,
         items,
-        payment: paymentDetails
+        payment: paymentDetails,
+        isMasked: !isAuthorized
       }
     });
   } catch (err) {
