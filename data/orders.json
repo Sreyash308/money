@@ -1,7 +1,43 @@
 {
-  "updated_at": "2026-09-09T07:51:51.569Z",
+  "updated_at": "2026-09-09T08:28:08.081Z",
   "last_reset_at": "2026-09-08T21:15:00.873Z",
   "orders": [
+    {
+      "id": "ord_65bf3844-1f95-460e-ad2d-345bee7fc993",
+      "order_number": "CAF-1030",
+      "customer_name": "Srinivas Gaddam",
+      "customer_phone": "7095847489",
+      "order_type": "DINE_IN",
+      "table_id": "tbl_1",
+      "table_number": 1,
+      "table_numbers": "1",
+      "guest_count": 2,
+      "status": "RECEIVED",
+      "payment_status": "PAYMENT_PENDING",
+      "payment_method": "RAZORPAY",
+      "subtotal": 1,
+      "tax": 0,
+      "discount": 0,
+      "total": 1,
+      "notes": null,
+      "order_token": "47053df45321883943c449d9a35b1428b3ce54d6ca9b76f0",
+      "idempotency_key": "idemp_1788942486772_e31m3l6",
+      "customer_utr": null,
+      "razorpay_order_id": "order_TZs8vZ50rujYua",
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-09T08:28:07.075Z",
+      "updated_at": "2026-09-09T08:28:07.075Z",
+      "items": [
+        {
+          "id": "3360380c-82ee-41db-afc9-5a0b3c627dc6",
+          "productId": "prod_hazelnut_mocha",
+          "nameSnapshot": "Hazelnut Mocha",
+          "priceSnapshot": 1,
+          "quantity": 1,
+          "subtotal": 1
+        }
+      ]
+    },
     {
       "id": "ord_8ddb73ef-5c11-49c9-bfb2-e3f4072db806",
       "order_number": "CAF-1029",
