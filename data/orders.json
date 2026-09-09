@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-09T04:14:12.651Z",
+  "updated_at": "2026-09-09T04:14:39.575Z",
   "last_reset_at": "2026-09-08T21:15:00.873Z",
   "orders": [
     {
@@ -12,7 +12,7 @@
       "table_number": null,
       "table_numbers": null,
       "guest_count": 2,
-      "status": "PREPARING",
+      "status": "READY",
       "payment_status": "PAID",
       "payment_method": "RAZORPAY",
       "subtotal": 1,
@@ -26,7 +26,7 @@
       "razorpay_order_id": "order_TZnl3xmXaHgvrs",
       "razorpay_payment_id": "pay_TZnldb1XPuUjak",
       "created_at": "2026-09-09T04:10:45.182Z",
-      "updated_at": "2026-09-09T04:14:12.552Z",
+      "updated_at": "2026-09-09T04:14:39.475Z",
       "items": [
         {
           "productId": "prod_hazelnut_mocha",
