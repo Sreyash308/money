@@ -1,7 +1,43 @@
 {
-  "updated_at": "2026-09-09T08:28:08.081Z",
+  "updated_at": "2026-09-09T18:47:19.909Z",
   "last_reset_at": "2026-09-08T21:15:00.873Z",
   "orders": [
+    {
+      "id": "ord_070dad0a-f70e-47bf-a82e-03916dee5930",
+      "order_number": "CAF-1031",
+      "customer_name": "Chota Bheem",
+      "customer_phone": "8008252889",
+      "order_type": "DINE_IN",
+      "table_id": "tbl_2",
+      "table_number": 2,
+      "table_numbers": "2",
+      "guest_count": 2,
+      "status": "RECEIVED",
+      "payment_status": "PAYMENT_PENDING",
+      "payment_method": "RAZORPAY",
+      "subtotal": 1,
+      "tax": 0,
+      "discount": 0,
+      "total": 1,
+      "notes": null,
+      "order_token": "f3d2cb72c8a77cce9c588273345722c5c46d370db3f5596b",
+      "idempotency_key": "idemp_1788979639631_42261fr",
+      "customer_utr": null,
+      "razorpay_order_id": "order_Ta2h0RHBkqw4Qz",
+      "razorpay_payment_id": null,
+      "created_at": "2026-09-09T18:47:18.896Z",
+      "updated_at": "2026-09-09T18:47:18.896Z",
+      "items": [
+        {
+          "id": "677dafb0-d0d3-4ec9-8749-68be4836b8f7",
+          "productId": "prod_hazelnut_mocha",
+          "nameSnapshot": "Hazelnut Mocha",
+          "priceSnapshot": 1,
+          "quantity": 1,
+          "subtotal": 1
+        }
+      ]
+    },
     {
       "id": "ord_65bf3844-1f95-460e-ad2d-345bee7fc993",
       "order_number": "CAF-1030",
