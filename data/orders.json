@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-11T14:08:50.367Z",
+  "updated_at": "2026-09-11T14:12:04.668Z",
   "last_reset_at": "2026-09-08T21:15:00.873Z",
   "orders": [
     {
@@ -12,7 +12,7 @@
       "table_number": 1,
       "table_numbers": "1",
       "guest_count": 2,
-      "status": "RECEIVED",
+      "status": "CANCELLED",
       "payment_status": "PAYMENT_PENDING",
       "payment_method": "RAZORPAY",
       "subtotal": 1,
@@ -26,13 +26,12 @@
       "razorpay_order_id": "order_Tal149Steubdi0",
       "razorpay_payment_id": null,
       "created_at": "2026-09-11T14:08:49.319Z",
-      "updated_at": "2026-09-11T14:08:49.319Z",
+      "updated_at": "2026-09-11T14:12:04.537Z",
       "items": [
         {
-          "id": "7545716a-fa02-49d1-b328-998bb16b6ba1",
           "productId": "prod_hazelnut_mocha",
-          "nameSnapshot": "Hazelnut Mocha",
-          "priceSnapshot": 1,
+          "name": "Hazelnut Mocha",
+          "unitPrice": 1,
           "quantity": 1,
           "subtotal": 1
         }
