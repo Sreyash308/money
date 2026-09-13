@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-13T06:40:28.359Z",
+  "updated_at": "2026-09-13T06:40:57.707Z",
   "last_reset_at": "2026-09-11T14:13:15.914Z",
   "orders": [
     {
@@ -12,8 +12,8 @@
       "table_number": 6,
       "table_numbers": "6",
       "guest_count": 2,
-      "status": "RECEIVED",
-      "payment_status": "PAYMENT_PENDING",
+      "status": "CONFIRMED",
+      "payment_status": "PAID",
       "payment_method": "RAZORPAY",
       "subtotal": 1,
       "tax": 0,
@@ -24,15 +24,14 @@
       "idempotency_key": "idemp_1789281626549_6ho42tg",
       "customer_utr": null,
       "razorpay_order_id": "order_TbQRgNKJzf116m",
-      "razorpay_payment_id": null,
+      "razorpay_payment_id": "pay_TbQRp0hNptKQOS",
       "created_at": "2026-09-13T06:40:27.415Z",
-      "updated_at": "2026-09-13T06:40:27.415Z",
+      "updated_at": "2026-09-13T06:40:57.604Z",
       "items": [
         {
-          "id": "2a1a6455-3bc1-4c0c-9c5b-e791ec0f5304",
           "productId": "prod_hazelnut_mocha",
-          "nameSnapshot": "Hazelnut Mocha",
-          "priceSnapshot": 1,
+          "name": "Hazelnut Mocha",
+          "unitPrice": 1,
           "quantity": 1,
           "subtotal": 1
         }
